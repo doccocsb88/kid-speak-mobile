@@ -1,10 +1,22 @@
 // src/services/authService.js
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config/api';
 
 class AuthService {
   constructor() {
-    this.token = localStorage.getItem('authToken');
-    this.user = JSON.parse(localStorage.getItem('user') || 'null');
+    this.token = null;
+    this.user = null;
+    this.initializeStorage();
+  }
+
+  async initializeStorage() {
+    try {
+      this.token = await AsyncStorage.getItem('authToken');
+      const userData = await AsyncStorage.getItem('user');
+      this.user = userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('Error initializing storage:', error);
+    }
   }
 
   // Helper method to make API calls
@@ -23,17 +35,38 @@ class AuthService {
       config.headers.Authorization = `Bearer ${this.token}`;
     }
 
+    // Log API call for debugging
+    console.log('API Call:', {
+      url,
+      method: config.method || 'GET',
+      headers: config.headers,
+      body: config.body
+    });
+
     try {
       const response = await fetch(url, config);
+      
+      // Log response for debugging
+      console.log('API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url
+      });
+
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('API Error Response:', data);
         throw new Error(data.message || 'API call failed');
       }
 
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('API Error:', {
+        url,
+        error: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   }
@@ -93,7 +126,7 @@ class AuthService {
       const response = await this.apiCall('/auth/profile');
       if (response.success) {
         this.user = response.data.user;
-        localStorage.setItem('user', JSON.stringify(this.user));
+        await AsyncStorage.setItem('user', JSON.stringify(this.user));
       }
       return response;
     } catch (error) {
@@ -111,7 +144,7 @@ class AuthService {
 
       if (response.success) {
         this.user = response.data.user;
-        localStorage.setItem('user', JSON.stringify(this.user));
+        await AsyncStorage.setItem('user', JSON.stringify(this.user));
       }
 
       return response;
@@ -167,19 +200,27 @@ class AuthService {
   }
 
   // Set authentication data
-  setAuthData(user, token) {
+  async setAuthData(user, token) {
     this.user = user;
     this.token = token;
-    localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('authToken', token);
+    try {
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+      await AsyncStorage.setItem('authToken', token);
+    } catch (error) {
+      console.error('Error saving auth data:', error);
+    }
   }
 
   // Clear authentication data
-  clearAuthData() {
+  async clearAuthData() {
     this.user = null;
     this.token = null;
-    localStorage.removeItem('user');
-    localStorage.removeItem('authToken');
+    try {
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('authToken');
+    } catch (error) {
+      console.error('Error clearing auth data:', error);
+    }
   }
 
   // Validate token

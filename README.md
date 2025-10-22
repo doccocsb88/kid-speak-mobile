@@ -1,70 +1,178 @@
-# Getting Started with Create React App
+# KidSpeak Mobile - React Native App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A React Native application for English learning for kids, converted from React.js.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **User Authentication**: Login/Register with guest mode support
+- **Topic Selection**: Choose from various learning topics (Animals, Colors, Family, etc.)
+- **Interactive Chat**: AI-powered English tutor with voice interaction
+- **Text-to-Speech**: OpenAI TTS integration with voice controls
+- **Speech Recognition**: Voice input for practicing pronunciation
+- **User Profiles**: Age-appropriate content based on user information
 
-### `npm start`
+## Prerequisites
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Node.js (>= 16)
+- React Native CLI
+- Android Studio (for Android development)
+- Xcode (for iOS development, macOS only)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Installation
 
-### `npm test`
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. **iOS Setup (macOS only):**
+   ```bash
+   cd ios && pod install && cd ..
+   ```
 
-### `npm run build`
+3. **Android Setup:**
+   - Open Android Studio
+   - Open the `android` folder
+   - Sync Gradle files
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+4. **Quick Start Scripts:**
+   ```bash
+   # For iOS (macOS only)
+   ./run-ios.sh
+   
+   # For Android
+   ./run-android.sh
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Running the App
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### iOS
+```bash
+npm run ios
+```
 
-### `npm run eject`
+### Android
+```bash
+npm run android
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Development Server
+```bash
+npm start
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Project Structure
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```
+src/
+├── components/          # Reusable UI components
+│   ├── AuthWrapper.js   # Authentication wrapper
+│   ├── Login.js         # Login form
+│   ├── Register.js      # Registration form
+│   ├── ChatBubble.js    # Chat message component
+│   ├── TopicSelection.js # Topic selection grid
+│   ├── UserInfo.js      # User information form
+│   └── Header.js        # App header
+├── contexts/            # React contexts
+│   └── AuthContext.js   # Authentication context
+├── pages/               # Main pages
+│   └── ChatPage.js      # Main chat interface
+├── services/            # API and external services
+│   ├── authService.js   # Authentication service
+│   └── ttsService.js    # Text-to-speech service
+├── utils/               # Utility functions
+│   └── sentenceSplitter.js # Text processing utilities
+└── config/              # Configuration files
+    └── api.js           # API configuration
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Key Dependencies
 
-## Learn More
+- **@react-navigation/native**: Navigation
+- **react-native-sound**: Audio playback
+- **react-native-voice**: Speech recognition
+- **react-native-async-storage**: Local storage
+- **axios**: HTTP client
+- **react-native-permissions**: Permission handling
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Configuration
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### API Configuration
+Update `src/config/api.js` with your backend API URL:
 
-### Code Splitting
+```javascript
+export const API_BASE_URL = 'http://your-api-url.com/api';
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Environment Variables
+Create a `.env` file in the root directory:
 
-### Analyzing the Bundle Size
+```
+REACT_APP_API_URL=http://your-api-url.com/api
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Features Converted from React.js
 
-### Making a Progressive Web App
+✅ **Authentication System**
+- Login/Register forms with validation
+- Guest mode support
+- AsyncStorage for token management
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+✅ **UI Components**
+- Responsive design adapted for mobile
+- Touch-friendly interface
+- Native mobile styling
 
-### Advanced Configuration
+✅ **Chat Interface**
+- Real-time messaging
+- Voice input/output
+- Topic-based learning
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+✅ **Services**
+- TTS integration with React Native Sound
+- Speech recognition with react-native-voice
+- API integration with axios
 
-### Deployment
+## Development Notes
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+- The app uses React Native's StyleSheet for styling instead of CSS
+- Voice recognition requires microphone permissions
+- TTS requires network connection for OpenAI API
+- AsyncStorage replaces localStorage for data persistence
 
-### `npm run build` fails to minify
+## Troubleshooting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### Common Issues
+
+1. **Metro bundler issues:**
+   ```bash
+   npx react-native start --reset-cache
+   ```
+
+2. **iOS build issues:**
+   ```bash
+   cd ios && pod install && cd ..
+   ```
+
+3. **Android build issues:**
+   - Clean and rebuild in Android Studio
+   - Check Android SDK and build tools versions
+
+### Permissions
+
+Make sure to grant the following permissions:
+- **Microphone**: For speech recognition
+- **Internet**: For API calls and TTS
+- **Storage**: For caching audio files
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test on both iOS and Android
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.

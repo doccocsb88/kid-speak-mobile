@@ -1,10 +1,18 @@
 // src/components/Register.js
 import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import './Register.css';
 
 const Register = ({ onSwitchToLogin }) => {
-  const { register, error, clearError, isLoading } = useAuth();
+  const { register, loginAsGuest, error, clearError, isLoading } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,8 +22,7 @@ const Register = ({ onSwitchToLogin }) => {
   });
   const [validationErrors, setValidationErrors] = useState({});
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (name, value) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -68,9 +75,7 @@ const Register = ({ onSwitchToLogin }) => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  const handleSubmit = async () => {
     if (!validateForm()) {
       return;
     }
@@ -89,128 +94,293 @@ const Register = ({ onSwitchToLogin }) => {
     }
   };
 
-  return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h2>Đăng ký</h2>
-          <p>Tạo tài khoản để bắt đầu học tập!</p>
-        </div>
+  const handleGuestMode = async () => {
+    try {
+      await loginAsGuest();
+      // The AuthContext will handle setting the user and isAuthenticated state
+      // This will automatically redirect to the main app
+    } catch (error) {
+      console.error('Guest login error:', error);
+    }
+  };
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="username">Tên người dùng (tùy chọn)</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.authCard}>
+        <View style={styles.authHeader}>
+          <Text style={styles.title}>Đăng ký</Text>
+          <Text style={styles.subtitle}>Tạo tài khoản để bắt đầu học tập!</Text>
+        </View>
+
+        <View style={styles.form}>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Tên người dùng (tùy chọn)</Text>
+            <TextInput
+              style={[styles.input, validationErrors.username && styles.inputError]}
               value={formData.username}
-              onChange={handleChange}
-              className={validationErrors.username ? 'error' : ''}
+              onChangeText={(value) => handleChange('username', value)}
               placeholder="Nhập tên người dùng của bạn"
-              disabled={isLoading}
+              editable={!isLoading}
             />
             {validationErrors.username && (
-              <span className="error-message">{validationErrors.username}</span>
+              <Text style={styles.errorMessage}>{validationErrors.username}</Text>
             )}
-          </div>
+          </View>
 
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={[styles.input, validationErrors.email && styles.inputError]}
               value={formData.email}
-              onChange={handleChange}
-              className={validationErrors.email ? 'error' : ''}
+              onChangeText={(value) => handleChange('email', value)}
               placeholder="Nhập email của bạn"
-              disabled={isLoading}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isLoading}
             />
             {validationErrors.email && (
-              <span className="error-message">{validationErrors.email}</span>
+              <Text style={styles.errorMessage}>{validationErrors.email}</Text>
             )}
-          </div>
+          </View>
 
-          <div className="form-group">
-            <label htmlFor="password">Mật khẩu</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Mật khẩu</Text>
+            <TextInput
+              style={[styles.input, validationErrors.password && styles.inputError]}
               value={formData.password}
-              onChange={handleChange}
-              className={validationErrors.password ? 'error' : ''}
+              onChangeText={(value) => handleChange('password', value)}
               placeholder="Nhập mật khẩu của bạn"
-              disabled={isLoading}
+              secureTextEntry
+              editable={!isLoading}
             />
             {validationErrors.password && (
-              <span className="error-message">{validationErrors.password}</span>
+              <Text style={styles.errorMessage}>{validationErrors.password}</Text>
             )}
-          </div>
+          </View>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Xác nhận mật khẩu</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Xác nhận mật khẩu</Text>
+            <TextInput
+              style={[styles.input, validationErrors.confirmPassword && styles.inputError]}
               value={formData.confirmPassword}
-              onChange={handleChange}
-              className={validationErrors.confirmPassword ? 'error' : ''}
+              onChangeText={(value) => handleChange('confirmPassword', value)}
               placeholder="Nhập lại mật khẩu"
-              disabled={isLoading}
+              secureTextEntry
+              editable={!isLoading}
             />
             {validationErrors.confirmPassword && (
-              <span className="error-message">{validationErrors.confirmPassword}</span>
+              <Text style={styles.errorMessage}>{validationErrors.confirmPassword}</Text>
             )}
-          </div>
+          </View>
 
-          <div className="form-group">
-            <label htmlFor="languagePreference">Ngôn ngữ ưa thích</label>
-            <select
-              id="languagePreference"
-              name="languagePreference"
-              value={formData.languagePreference}
-              onChange={handleChange}
-              disabled={isLoading}
-            >
-              <option value="vi">Tiếng Việt</option>
-              <option value="en">English</option>
-            </select>
-          </div>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Ngôn ngữ ưa thích</Text>
+            <View style={styles.pickerContainer}>
+              <TouchableOpacity
+                style={styles.picker}
+                onPress={() => {
+                  Alert.alert(
+                    'Chọn ngôn ngữ',
+                    '',
+                    [
+                      { text: 'Tiếng Việt', onPress: () => handleChange('languagePreference', 'vi') },
+                      { text: 'English', onPress: () => handleChange('languagePreference', 'en') },
+                    ]
+                  );
+                }}
+                disabled={isLoading}
+              >
+                <Text style={styles.pickerText}>
+                  {formData.languagePreference === 'vi' ? 'Tiếng Việt' : 'English'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {error && (
-            <div className="error-banner">
-              {error}
-            </div>
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
           )}
 
-          <button 
-            type="submit" 
-            className="auth-button primary"
+          <TouchableOpacity 
+            style={[styles.authButton, styles.primaryButton]}
+            onPress={handleSubmit}
             disabled={isLoading}
           >
-            {isLoading ? 'Đang đăng ký...' : 'Đăng ký'}
-          </button>
-        </form>
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Đang đăng ký...' : 'Đăng ký'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        <div className="auth-footer">
-          <p>
+        <View style={styles.authFooter}>
+          <Text style={styles.footerText}>
             Đã có tài khoản?{' '}
-            <button 
-              type="button" 
-              className="link-button"
-              onClick={onSwitchToLogin}
-              disabled={isLoading}
+            <Text 
+              style={styles.linkButton}
+              onPress={onSwitchToLogin}
             >
               Đăng nhập ngay
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
+            </Text>
+          </Text>
+          
+          <View style={styles.divider}>
+            <Text style={styles.dividerText}>hoặc</Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={[styles.authButton, styles.secondaryButton]}
+            onPress={handleGuestMode}
+            disabled={isLoading}
+          >
+            <Text style={styles.secondaryButtonText}>
+              Tiếp tục với tài khoản khách
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  authCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  authHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  form: {
+    marginBottom: 24,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#ffffff',
+  },
+  inputError: {
+    borderColor: '#ff4444',
+  },
+  errorMessage: {
+    color: '#ff4444',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+  },
+  picker: {
+    padding: 12,
+    justifyContent: 'center',
+  },
+  pickerText: {
+    fontSize: 16,
+    color: '#333333',
+  },
+  errorBanner: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorBannerText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  authButton: {
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  primaryButton: {
+    backgroundColor: '#007AFF',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  authFooter: {
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  linkButton: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  divider: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerText: {
+    fontSize: 14,
+    color: '#999999',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 16,
+  },
+});
 
 export default Register;

@@ -1,23 +1,24 @@
 // src/components/AuthWrapper.js
 import React, { useState } from 'react';
+import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../contexts/AuthContext';
 import Login from './Login';
 import Register from './Register';
 import ChatPage from '../pages/ChatPage';
 
 const AuthWrapper = () => {
+  const navigation = useNavigation();
   const { isAuthenticated, isLoading } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
 
   // Show loading spinner while checking authentication
   if (isLoading) {
     return (
-      <div className="loading-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Đang tải...</p>
-        </div>
-      </div>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Đang tải...</Text>
+      </View>
     );
   }
 
@@ -31,7 +32,21 @@ const AuthWrapper = () => {
   }
 
   // If user is authenticated, show chat page
-  return <ChatPage />;
+  return <ChatPage navigation={navigation} />;
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666666',
+  },
+});
 
 export default AuthWrapper;

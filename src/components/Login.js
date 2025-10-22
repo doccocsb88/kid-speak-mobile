@@ -1,18 +1,27 @@
 // src/components/Login.js
 import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import './Login.css';
+import { useNavigation } from '@react-navigation/native';
 
 const Login = ({ onSwitchToRegister }) => {
-  const { login, error, clearError, isLoading } = useAuth();
+  const { login, loginAsGuest, error, clearError, isLoading } = useAuth();
+  const navigation = useNavigation();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [validationErrors, setValidationErrors] = useState({});
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (name, value) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -36,22 +45,20 @@ const Login = ({ onSwitchToRegister }) => {
     const errors = {};
     
     if (!formData.email) {
-      errors.email = 'Email là bắt buộc';
+      errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Email không hợp lệ';
+      errors.email = 'Invalid email format';
     }
     
     if (!formData.password) {
-      errors.password = 'Mật khẩu là bắt buộc';
+      errors.password = 'Password is required';
     }
     
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
+  const handleSubmit = async () => {
     if (!validateForm()) {
       return;
     }
@@ -63,101 +70,245 @@ const Login = ({ onSwitchToRegister }) => {
     }
   };
 
-  const handleGuestMode = () => {
-    // For now, we'll just clear the form and let the user continue
-    // In a real app, you might want to set a guest mode flag
-    setFormData({ email: '', password: '' });
-    setValidationErrors({});
-    clearError();
+  const handleGuestMode = async () => {
+    try {
+      await loginAsGuest();
+      // The AuthContext will handle setting the user and isAuthenticated state
+      // This will automatically redirect to the main app
+    } catch (error) {
+      console.error('Guest login error:', error);
+    }
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h2>Đăng nhập</h2>
-          <p>Chào mừng bạn quay trở lại!</p>
-        </div>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <View style={styles.authCard}>
+        <View style={styles.authHeader}>
+          <Text style={styles.title}>Login</Text>
+          <Text style={styles.subtitle}>Welcome back!</Text>
+        </View>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
+        <View style={styles.form}>
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={[styles.input, validationErrors.email && styles.inputError]}
               value={formData.email}
-              onChange={handleChange}
-              className={validationErrors.email ? 'error' : ''}
-              placeholder="Nhập email của bạn"
-              disabled={isLoading}
+              onChangeText={(value) => handleChange('email', value)}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!isLoading}
             />
             {validationErrors.email && (
-              <span className="error-message">{validationErrors.email}</span>
+              <Text style={styles.errorMessage}>{validationErrors.email}</Text>
             )}
-          </div>
+          </View>
 
-          <div className="form-group">
-            <label htmlFor="password">Mật khẩu</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Mật khẩu</Text>
+            <TextInput
+              style={[styles.input, validationErrors.password && styles.inputError]}
               value={formData.password}
-              onChange={handleChange}
-              className={validationErrors.password ? 'error' : ''}
-              placeholder="Nhập mật khẩu của bạn"
-              disabled={isLoading}
+              onChangeText={(value) => handleChange('password', value)}
+              placeholder="Enter your password"
+              secureTextEntry
+              editable={!isLoading}
             />
             {validationErrors.password && (
-              <span className="error-message">{validationErrors.password}</span>
+              <Text style={styles.errorMessage}>{validationErrors.password}</Text>
             )}
-          </div>
+          </View>
 
           {error && (
-            <div className="error-banner">
-              {error}
-            </div>
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
           )}
 
-          <button 
-            type="submit" 
-            className="auth-button primary"
+          <TouchableOpacity 
+            style={[styles.authButton, styles.primaryButton]}
+            onPress={handleSubmit}
             disabled={isLoading}
           >
-            {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-          </button>
-        </form>
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Logging in...' : 'Login'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        <div className="auth-footer">
-          <p>
-            Chưa có tài khoản?{' '}
-            <button 
-              type="button" 
-              className="link-button"
-              onClick={onSwitchToRegister}
-              disabled={isLoading}
+        <View style={styles.authFooter}>
+          <Text style={styles.footerText}>
+            Don't have an account?{' '}
+            <Text 
+              style={styles.linkButton}
+              onPress={onSwitchToRegister}
             >
-              Đăng ký ngay
-            </button>
-          </p>
+              Sign up now
+            </Text>
+          </Text>
           
-          <div className="divider">
-            <span>hoặc</span>
-          </div>
+          <View style={styles.divider}>
+            <Text style={styles.dividerText}>or</Text>
+          </View>
           
-          <button 
-            type="button" 
-            className="auth-button secondary"
-            onClick={handleGuestMode}
+          <TouchableOpacity 
+            style={[styles.authButton, styles.secondaryButton]}
+            onPress={handleGuestMode}
             disabled={isLoading}
           >
-            Tiếp tục với tài khoản khách
-          </button>
-        </div>
-      </div>
-    </div>
+            <Text style={styles.secondaryButtonText}>
+              Continue as Guest
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.authButton, styles.testButton]}
+            onPress={() => navigation.navigate('APITest')}
+            disabled={isLoading}
+          >
+            <Text style={styles.testButtonText}>
+              Test API Connection
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  contentContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  authCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  authHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  form: {
+    marginBottom: 24,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#ffffff',
+  },
+  inputError: {
+    borderColor: '#ff4444',
+  },
+  errorMessage: {
+    color: '#ff4444',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  errorBanner: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorBannerText: {
+    color: '#c62828',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  authButton: {
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  primaryButton: {
+    backgroundColor: '#007AFF',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  testButton: {
+    backgroundColor: '#FF9500',
+  },
+  testButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  authFooter: {
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  linkButton: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  divider: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dividerText: {
+    fontSize: 14,
+    color: '#999999',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 16,
+  },
+});
 
 export default Login;

@@ -1,5 +1,6 @@
 // src/contexts/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/authService';
 
 const AuthContext = createContext();
@@ -33,13 +34,42 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(true);
           } else {
             authService.clearAuthData();
+            // Auto-login as guest if token is invalid
+            await autoLoginAsGuest();
           }
+        } else {
+          // Auto-login as guest if not authenticated
+          await autoLoginAsGuest();
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
         authService.clearAuthData();
+        // Auto-login as guest on error
+        await autoLoginAsGuest();
       } finally {
         setIsLoading(false);
+      }
+    };
+
+    const autoLoginAsGuest = async () => {
+      try {
+        // Create a guest user object
+        const guestUser = {
+          id: 'guest',
+          email: 'guest@kidspeak.com',
+          name: 'Tài khoản khách',
+          isGuest: true,
+          preferences: {
+            language: 'vi',
+            level: 'beginner',
+            topics: []
+          }
+        };
+        
+        setUser(guestUser);
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Auto guest login error:', error);
       }
     };
 
@@ -165,6 +195,37 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  // Guest mode function
+  const loginAsGuest = async () => {
+    try {
+      setError(null);
+      setIsLoading(true);
+      
+      // Create a guest user object
+      const guestUser = {
+        id: 'guest',
+        email: 'guest@kidspeak.com',
+        name: 'Tài khoản khách',
+        isGuest: true,
+        preferences: {
+          language: 'vi',
+          level: 'beginner',
+          topics: []
+        }
+      };
+      
+      setUser(guestUser);
+      setIsAuthenticated(true);
+      
+      return { success: true, data: { user: guestUser } };
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Get user stats
   const getUserStats = async () => {
     try {
@@ -192,6 +253,7 @@ export const AuthProvider = ({ children }) => {
     changePassword,
     clearError,
     getUserStats,
+    loginAsGuest,
   };
 
   return (
