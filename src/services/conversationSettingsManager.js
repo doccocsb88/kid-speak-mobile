@@ -12,14 +12,11 @@ const OPTIONS_DEFAULT = {
   correction_mode: 'explicit',
   difficulty: 'auto',
   focus: ['vocabulary', 'pronunciation'],
-  target_vocab: [],
   min_examples_per_point: 1,
-  scaffold_level: 1,
 
   // Language shaping
   max_sentence_words: 10,
   max_sentences_per_turn: 2,
-  emoji_usage: 'light',
   bilingual_support: 'off',
   ipa_pronunciation: false,
   phonics_hints: false,
@@ -27,27 +24,21 @@ const OPTIONS_DEFAULT = {
   // Engagement & game mechanics
   anti_loop: true,
   reengage_after_seconds: 30,
-  reengage_style: 'playful',
-  activity_preference: ['repeat_after_me', 'AB_choice', 'fill_blank'],
-  praise_frequency: 'normal',
-  challenge_ratio: 0.4,
+  // Removed: reengage_style, activity_preference, praise_frequency, challenge_ratio
 
   // Flow & topic control
   topic_strictness: 'normal',
-  open_question_ratio: 0.3,
   wrap_up_on_turns: 14,
 
   // Safety & content
   banned_topics: [],
   profanity_filter: true,
-  age_gate: 6,
 
   // Voice/TTS & prosody
-  voice_policy: 'per_level',
   voice_fixed: 'alloy',
   speaking_rate: 'slow',
   ssml: false,
-  pause_ms_between_sentences: 250,
+  pause_ms_between_sentences: 200,
 
   // Model steering
   temperature_base: 0.7,

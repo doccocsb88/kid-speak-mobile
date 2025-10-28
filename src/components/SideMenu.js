@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import UserInfo from './UserInfo';
 import AppSettingsPage from './AppSettingsPage';
 import { getUserData, markUserInfoCompleted } from '../utils/onboardingStorage';
+import UserManager from '../services/UserManager';
 
 function SideMenu({ 
   isVisible, 
@@ -32,6 +33,7 @@ function SideMenu({
   const [showUserInfoEdit, setShowUserInfoEdit] = useState(false);
   const [showAppSettings, setShowAppSettings] = useState(false);
   const [currentUserData, setCurrentUserData] = useState(null);
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
   const slideAnim = useState(new Animated.Value(-Dimensions.get('window').width * 0.9))[0];
   const chatSlideAnim = useState(new Animated.Value(0))[0];
 
@@ -40,6 +42,7 @@ function SideMenu({
     if (isVisible) {
       loadConversations();
       loadUserData();
+      checkPremiumStatus();
       // Animate side menu slide in
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -76,6 +79,17 @@ function SideMenu({
       setCurrentUserData(userData);
     } catch (error) {
       console.log('Error loading user data:', error);
+    }
+  };
+
+  const checkPremiumStatus = async () => {
+    try {
+      await UserManager.initialize();
+      const isPremium = UserManager.isPremium();
+      setIsPremiumUser(isPremium);
+    } catch (error) {
+      console.log('Error checking premium status:', error);
+      setIsPremiumUser(false);
     }
   };
 
@@ -298,12 +312,14 @@ function SideMenu({
               </View>
               
               <View style={styles.userActions}>
-                <TouchableOpacity 
-                  style={styles.premiumButton}
-                  onPress={handlePremiumPress}
-                >
-                  <Text style={styles.premiumButtonText}>⭐ Upgrade to Premium</Text>
-                </TouchableOpacity>
+                {!isPremiumUser && (
+                  <TouchableOpacity 
+                    style={styles.premiumButton}
+                    onPress={handlePremiumPress}
+                  >
+                    <Text style={styles.premiumButtonText}>⭐ Upgrade to Premium</Text>
+                  </TouchableOpacity>
+                )}
                 
                 <TouchableOpacity 
                   style={styles.settingsButton}

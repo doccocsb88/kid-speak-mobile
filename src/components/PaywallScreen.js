@@ -11,10 +11,15 @@ import {
   Modal,
   StatusBar,
   Platform,
+  Dimensions,
 } from 'react-native';
 import {WebView} from 'react-native-webview';
 import NativeIAPService from '../services/nativeIapService';
 import UserManager from '../services/UserManager';
+
+// Get screen dimensions
+const {height: SCREEN_HEIGHT} = Dimensions.get('window');
+const isSmallDevice = SCREEN_HEIGHT < 700;
 
 // Common features for all plans
 const COMMON_FEATURES = [
@@ -235,12 +240,24 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
         barStyle={(showPrivacyPolicy || showTermsOfUse) ? 'dark-content' : 'light-content'}
         backgroundColor={(showPrivacyPolicy || showTermsOfUse) ? '#FFF' : '#6C5CE7'}
       />
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
+      
+      {/* Show content only when we have products OR when not in initial loading */}
+      {products.length === 0 && loading ? (
+        // Initial loading - show only loading screen
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#6C5CE7" />
+            <Text style={styles.loadingText}>Loading subscription plans...</Text>
+          </View>
+        </View>
+      ) : (
+        // Main content
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
           <TouchableOpacity 
             style={styles.closeButton} 
             onPress={handleClose}
@@ -323,11 +340,7 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
           disabled={loading}
           activeOpacity={0.8}
         >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
-          )}
+          <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
         </TouchableOpacity>
 
        
@@ -362,7 +375,18 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
             • Any unused portion of a free trial period, if offered, will be forfeited when user purchases a subscription to that publication, where applicable.
           </Text>
         </View>
-      </ScrollView>
+        </ScrollView>
+      )}
+
+      {/* Loading Overlay - when performing actions */}
+      {loading && products.length > 0 && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color="#6C5CE7" />
+            <Text style={styles.loadingText}>Processing...</Text>
+          </View>
+        </View>
+      )}
 
       {/* Privacy Policy Modal */}
       <Modal
@@ -428,6 +452,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#6C5CE7',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#6C5CE7',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  loadingCard: {
+    width: 200,
+    height: 100,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6C5CE7',
+    fontWeight: '500',
+  },
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
@@ -436,7 +496,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#6C5CE7',
     paddingTop: StatusBar.currentHeight || 50,
-    paddingBottom: 5,
+    paddingBottom: isSmallDevice ? 10 : 15,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -449,7 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: isSmallDevice ? 0 : 5,
   },
   closeButtonText: {
     color: '#FFF',
@@ -458,7 +518,7 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: isSmallDevice ? 0 : 5,
   },
   emoji: {
     fontSize: 60,
@@ -479,24 +539,24 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   featuresInHeader: {
-    marginTop: 10,
+    marginTop: isSmallDevice ? 0 : 5,
     alignItems: 'center',
   },
   plansContainer: {
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 15,
     backgroundColor: '#FFF',
-    paddingTop: 20,
+    paddingTop: 10,
   },
   planCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,
-    paddingTop: 20,
+    paddingTop: 16,
     paddingLeft: 20,
     paddingRight: 20,
     paddingBottom: 0,
 
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 2,
     borderColor: '#E8E8E8',
     shadowColor: '#000',
@@ -559,43 +619,43 @@ const styles = StyleSheet.create({
     marginLeft: 35,
   },
   planTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#2C3E50',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   planDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#7F8C8D',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   priceContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   planPrice: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#6C5CE7',
   },
   planDuration: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#7F8C8D',
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   featureCheck: {
     color: '#FFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 10,
+    marginRight: 8,
   },
   featureText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#FFF',
     flex: 1,
     fontWeight: '500',
@@ -603,8 +663,8 @@ const styles = StyleSheet.create({
   subscribeButton: {
     backgroundColor: '#6C5CE7',
     marginHorizontal: 20,
-    marginTop: 10,
-    paddingVertical: 18,
+    marginTop: 8,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -613,7 +673,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
-    minHeight: 56,
+    minHeight: 50,
   },
   subscribeButtonDisabled: {
     opacity: 0.6,
@@ -636,7 +696,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   termsContainer: {
-    marginTop: 20,
+    marginTop: 12,
     marginHorizontal: 20,
     alignItems: 'center',
     backgroundColor: '#FFF',
@@ -650,11 +710,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   policyText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#95A5A6',
-    lineHeight: 16,
-    marginTop: 12,
-    marginBottom: 16,
+    lineHeight: 14,
+    marginTop: 8,
+    marginBottom: 12,
     textAlign: 'left',
   },
 

@@ -217,6 +217,7 @@ function ChatPage({ navigation }) {
     setMessages(conversation.messages || []);
     setSelectedTopic(conversation.topic);
     setCurrentConversationId(conversation.id);
+    setInputMessage('');
     setShowSideMenu(false);
   };
 
@@ -398,7 +399,6 @@ function ChatPage({ navigation }) {
         // Configure options for auto-prompt
         const options = {
           ...getOptions(),
-          target_vocab: selectedTopic?.vocabulary || [],
         };
 
         // Prepare chat history for auto-prompt (bỏ message đầu tiên - initial greeting)
@@ -512,7 +512,7 @@ function ChatPage({ navigation }) {
   // Handle topic selection (synchronized with settings manager)
   const handleTopicSelect = async (topic) => {
     console.log('[TopicSelect] Starting new topic flow:', topic.title);
-    
+    setInputMessage('');
     // Complete flow restart - stop all ongoing processes
     await stopSpeaking();
     clearUserTimeout();
@@ -635,7 +635,6 @@ function ChatPage({ navigation }) {
       // Configure options for getOpenAIResponseV2
       const options = {
         ...getOptions(),
-        target_vocab: selectedTopic?.vocabulary || [],
       };
 
       // Prepare chat history (bỏ message đầu tiên - initial greeting)
@@ -770,6 +769,19 @@ function ChatPage({ navigation }) {
     if (isSpeaking) {
       console.log('Speaking mode blocked: Teacher is currently speaking');
       return;
+    }
+    
+    try {
+      const allowed = await userManager.canSendRequest();
+      if (!allowed) {
+        Keyboard.dismiss();
+        if (navigation) {
+          navigation.navigate('Paywall');
+        }
+        return;
+      }
+    } catch (e) {
+      console.log('UserManager.canSendRequest error:', e);
     }
     
     // Navigate to SpeakingScreen

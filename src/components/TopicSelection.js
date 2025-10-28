@@ -12,6 +12,14 @@ const TOPICS = [
     ageRange: '6-11'
   },
   {
+    id: 'daily-activities',
+    title: 'Daily Activities',
+    icon: '🌅',
+    description: 'Talk about what you do every day from morning to night. Learn about daily routines, time expressions, and everyday activities like eating, playing, and sleeping.',
+    vocabulary: ['wake up', 'breakfast', 'lunch', 'dinner', 'sleep', 'play', 'study', 'brush teeth'],
+    ageRange: '6-11'
+  },
+  {
     id: 'animals',
     title: 'Animals',
     icon: '🐶',
@@ -90,6 +98,30 @@ const TOPICS = [
     description: 'Play with your favorite toys and games. Talk about favorite toys, how to play with them, and sharing toys with friends.',
     vocabulary: ['doll', 'ball', 'car', 'toy', 'game', 'puzzle', 'blocks', 'teddy bear'],
     ageRange: '6-9'
+  },
+  {
+    id: 'history',
+    title: 'History',
+    icon: '📜',
+    description: 'Travel back in time to learn about important people and events. Explore simple timelines, inventions, and how life used to be.',
+    vocabulary: ['past', 'king', 'queen', 'timeline', 'invention', 'village', 'empire', 'museum'],
+    ageRange: '8-11'
+  },
+  {
+    id: 'geography',
+    title: 'Geography',
+    icon: '🌍',
+    description: 'Discover countries, maps, and landforms. Learn about continents, oceans, and places around the world.',
+    vocabulary: ['map', 'country', 'city', 'mountain', 'river', 'ocean', 'continent', 'island'],
+    ageRange: '8-11'
+  },
+  {
+    id: 'science',
+    title: 'Science',
+    icon: '🔬',
+    description: 'Explore experiments, energy, and living things. Learn how the world works through fun discoveries.',
+    vocabulary: ['experiment', 'energy', 'plant', 'animal', 'gravity', 'matter', 'solid', 'liquid'],
+    ageRange: '8-11'
   }
 ];
 
@@ -118,17 +150,17 @@ function TopicSelection({ onTopicSelect, selectedAge = 7 }) {
             <Text style={styles.topicTitle}>{topic.title}</Text>
             <Text style={styles.topicDescription}>{topic.description}</Text>
             <View style={styles.topicVocabulary}>
-              <Text style={styles.vocabLabel}>Words you'll learn:</Text>
-              <View style={styles.vocabWords}>
+              {/* <Text style={styles.vocabLabel}>Words you'll learn:</Text> */}
+              {/* <View style={styles.vocabWords}>
                 {topic.vocabulary.slice(0, 4).map(word => (
                   <Text key={word} style={styles.vocabWord}>{word}</Text>
                 ))}
                 {topic.vocabulary.length > 4 && (
                   <Text style={styles.vocabMore}>+{topic.vocabulary.length - 4} more</Text>
                 )}
-              </View>
+              </View> */}
             </View>
-            <Text style={styles.topicAge}>Ages {topic.ageRange}</Text>
+            {/* <Text style={styles.topicAge}>Ages {topic.ageRange}</Text> */}
           </TouchableOpacity>
         ))}
       </View>

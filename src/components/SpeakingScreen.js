@@ -25,6 +25,8 @@ import { API_BASE_URL } from '../config/api';
 import ConversationSettings from './ConversationSettings';
 import conversationSettingsManager from '../services/conversationSettingsManager';
 import { useConversationSettings } from '../hooks/useConversationSettings';
+import userManager from '../services/UserManager';
+import { useNavigation } from '@react-navigation/native';
 
 // ====== State Machine ======
 const STATES = {
@@ -103,6 +105,7 @@ export default function SpeakingScreen({
 }) {
   const { isAuthenticated } = useAuth();
   const { getOptions } = useConversationSettings();
+  const navigation = useNavigation();
 
   // === State for conversation messages ===
   const [conversationMessages, setConversationMessages] = useState(initialMessages);
@@ -111,6 +114,7 @@ export default function SpeakingScreen({
   const [showSettings, setShowSettings] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(initialSelectedVoice);
   const [speechRate, setSpeechRate] = useState(1.0);
+  const [premiumRequired, setPremiumRequired] = useState(false);
 
   // Initialize from settings manager
   useEffect(() => {
@@ -158,6 +162,7 @@ export default function SpeakingScreen({
   const transcriptRef = useRef('');
   const isPlayingRef = useRef(false);
   const isProcessingRef = useRef(false); // Flag to block transcript updates during API/playback
+  const gateBlockedRef = useRef(false); // Block STT when premium gate is hit
 
   // Keep refs in sync with state
   useEffect(() => { transcriptRef.current = S.transcript; }, [S.transcript]);
@@ -165,6 +170,15 @@ export default function SpeakingScreen({
     isPlayingRef.current = (S.state === STATES.PLAYING); 
     isProcessingRef.current = (S.state === STATES.REQUESTING || S.state === STATES.PLAYING);
   }, [S.state]);
+  useEffect(() => { gateBlockedRef.current = premiumRequired; }, [premiumRequired]);
+
+  const openPaywall = () => {
+    try {
+      if (navigation?.navigate) {
+        navigation.navigate('Paywall');
+      }
+    } catch (_) {}
+  };
 
   // === Helpers: pulse ===
   const startPulse = () => {
@@ -213,6 +227,10 @@ export default function SpeakingScreen({
   // === Voice listeners (bind once) ===
   useEffect(() => {
     Voice.onSpeechStart = () => {
+      if (gateBlockedRef.current) {
+        console.log('[Voice] Ignoring speech start - premium gate active');
+        return; 
+      }
       if (isProcessingRef.current) { 
         console.log('[Voice] Ignoring speech start - processing API/audio');
         return; 
@@ -225,6 +243,10 @@ export default function SpeakingScreen({
     };
 
     Voice.onSpeechResults = (e) => {
+      if (gateBlockedRef.current) {
+        console.log('[Voice] Ignoring speech results - premium gate active');
+        return; // ignore during premium gate
+      }
       if (isProcessingRef.current) {
         console.log('[Voice] Ignoring speech results - processing API/audio');
         return; // ignore during processing
@@ -238,6 +260,10 @@ export default function SpeakingScreen({
     };
 
     Voice.onSpeechEnd = () => {
+      if (gateBlockedRef.current) {
+        console.log('[Voice] Ignoring speech end - premium gate active');
+        return;
+      }
       if (isProcessingRef.current) {
         console.log('[Voice] Ignoring speech end - processing API/audio');
         return;
@@ -275,6 +301,10 @@ export default function SpeakingScreen({
   // === Start/Stop listening ===
   const startListening = async () => {
     try {
+      if (gateBlockedRef.current) {
+        console.log('[Voice] startListening blocked by premium gate');
+        return;
+      }
       console.log('[Voice] Starting listening...');
       
       // CRITICAL: Ensure Voice is completely clean before starting (prevents iOS reuse error)
@@ -288,6 +318,10 @@ export default function SpeakingScreen({
       
       // Re-bind listeners (in case they were removed)
       Voice.onSpeechStart = () => {
+        if (gateBlockedRef.current) {
+          console.log('[Voice] Ignoring speech start - premium gate active');
+          return;
+        }
         if (isProcessingRef.current) { 
           console.log('[Voice] Ignoring speech start - processing API/audio');
           return; 
@@ -299,6 +333,10 @@ export default function SpeakingScreen({
       };
 
       Voice.onSpeechResults = (e) => {
+        if (gateBlockedRef.current) {
+          console.log('[Voice] Ignoring speech results - premium gate active');
+          return;
+        }
         if (isProcessingRef.current) {
           console.log('[Voice] Ignoring speech results - processing API/audio');
           return;
@@ -312,6 +350,10 @@ export default function SpeakingScreen({
       };
 
       Voice.onSpeechEnd = () => {
+        if (gateBlockedRef.current) {
+          console.log('[Voice] Ignoring speech end - premium gate active');
+          return;
+        }
         if (isProcessingRef.current) {
           console.log('[Voice] Ignoring speech end - processing API/audio');
           return;
@@ -366,6 +408,23 @@ export default function SpeakingScreen({
     console.log('[API] selectedTopic:', JSON.stringify(selectedTopic));
     console.log('[API] selectedTopic.id:', selectedTopic?.id);
     console.log('[API] selectedTopic.title:', selectedTopic?.title);
+    // Gate: daily limit / premium requirement
+    try {
+      const allowed = await userManager.canSendRequest();
+      if (!allowed) {
+        console.log('[Gate] Daily limit reached — blocking and showing paywall');
+        setPremiumRequired(true);
+        try {
+          await Voice.stop();
+          await Voice.cancel();
+        } catch (_) {}
+        showUserBubble();
+        openPaywall();
+        return;
+      }
+    } catch (e) {
+      console.warn('[Gate] canSendRequest check failed:', e?.message || e);
+    }
     dispatch({ type: 'REQUESTING' });
 
     // Add user message to conversation
@@ -382,7 +441,6 @@ export default function SpeakingScreen({
       // Configure options for getOpenAIResponseV2 (from conversation settings)
       const options = {
         ...getOptions(),
-        target_vocab: selectedTopic?.vocabulary || [],
       };
 
       // Build chatHistory from conversationMessages (before adding current message)
@@ -429,6 +487,9 @@ export default function SpeakingScreen({
       const text = data.response || '';
       const audio = data.audio;
       const format = data.audioFormat; // kept if backend uses
+
+      // Count successful API request for free users
+      try { await userManager.recordRequest(); } catch (_) {}
 
       // Add AI message to conversation
       const aiMessage = { sender: 'ai', text: text };
@@ -662,22 +723,29 @@ export default function SpeakingScreen({
 
       <View style={styles.mainContent}>
         {/* User bubble */}
-        <Animated.View
-          style={[
-            styles.userSpeechBubble,
-            {
-              opacity: userBubbleAnim,
-              transform: [
-                { scale: userBubbleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
-              ],
-            },
-          ]}
+        <TouchableOpacity
+          activeOpacity={premiumRequired ? 0.7 : 1}
+          onPress={() => { if (premiumRequired) openPaywall(); }}
         >
-          <Text style={styles.speechBubbleLabel}>You said:</Text>
-          <Text style={styles.speechBubbleText}>
-            {S.transcript || S.lastUserInput || (isListening ? 'Listening…' : 'Tap to speak')}
-          </Text>
-        </Animated.View>
+          <Animated.View
+            style={[
+              styles.userSpeechBubble,
+              {
+                opacity: userBubbleAnim,
+                transform: [
+                  { scale: userBubbleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
+                ],
+              },
+            ]}
+          >
+            <Text style={styles.speechBubbleLabel}>You said:</Text>
+            <Text style={styles.speechBubbleText}>
+              {premiumRequired
+                ? 'Daily limit reached. Tap to upgrade to Premium and continue.'
+                : (S.transcript || S.lastUserInput || (isListening ? 'Listening…' : 'Tap to speak'))}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
 
         {/* Center mic */}
         <View style={styles.centerArea}>

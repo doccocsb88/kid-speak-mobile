@@ -10,7 +10,7 @@ const getApiUrl = () => {
     // return 'http://192.168.2.73:5000/api';
   } else {
     // Production URL - Update this with your actual production backend URL
-    return 'https://kidspeak-backend.vercel.app/api';
+    return 'https://kid-speak-backend.vercel.app/api';
   }
 };
 

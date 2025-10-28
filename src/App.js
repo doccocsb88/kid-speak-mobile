@@ -76,6 +76,7 @@ function App() {
       case 'loading':
         console.log('⏳ Loading (SplashScreen skipped)');
         return null; // Very brief while we determine initial screen
+        // return <SplashScreen onFinish={() => setAppState('onboarding')} />;
       case 'onboarding':
         console.log('👋 Rendering OnboardingScreen');
         return <OnboardingScreen onFinish={handleOnboardingFinish} />;

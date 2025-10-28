@@ -106,16 +106,16 @@ const OnboardingScreen = ({onFinish}) => {
               </TouchableOpacity>
             )}
 
-            {/* Main content */}
-            <View style={styles.textContainer}>
-              <Text style={styles.title}>{pageData.title}</Text>
-              <Text style={styles.subtitle}>{pageData.subtitle}</Text>
-              <Text style={styles.description}>{pageData.description}</Text>
-            </View>
+            {/* Bottom stack: text just above indicators, both anchored to bottom */}
+            <View style={styles.bottomStack}>
+              {/* Main content */}
+              <View style={styles.textContainer}>
+                <Text style={styles.title}>{pageData.title}</Text>
+                <Text style={styles.subtitle}>{pageData.subtitle}</Text>
+                <Text style={styles.description}>{pageData.description}</Text>
+              </View>
 
-            {/* Bottom section with indicators and button */}
-            <View style={styles.bottomSection}>
-              {/* Page indicators */}
+              {/* Page indicators at very bottom */}
               <View style={styles.indicatorContainer}>
                 {onboardingData.map((_, index) => (
                   <View
@@ -131,7 +131,7 @@ const OnboardingScreen = ({onFinish}) => {
                 ))}
               </View>
 
-              {/* Action button */}
+              {/* Action button below indicators */}
               <TouchableOpacity
                 style={[
                   styles.actionButton,
@@ -199,10 +199,14 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 30,
     paddingTop: 60,
     paddingBottom: 40,
+  },
+  bottomStack: {
+    marginTop: 'auto',
+    alignItems: 'center',
   },
   skipButton: {
     alignSelf: 'flex-end',
@@ -219,7 +223,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   textContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -261,7 +264,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 20,
+    marginTop: 10,
     gap: 8,
   },
   indicator: {

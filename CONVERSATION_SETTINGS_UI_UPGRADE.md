@@ -122,7 +122,6 @@ The `options` object follows the structure from `openaiService.js`:
   
   // Flow & topic control
   topic_strictness: 'normal', // 'loose' | 'normal' | 'strict'
-  open_question_ratio: 0.3, // 0-1
   wrap_up_on_turns: 14, // 10-30
   
   // Safety & content

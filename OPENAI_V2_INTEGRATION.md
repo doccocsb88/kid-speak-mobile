@@ -90,7 +90,6 @@ const response = await axios.post(`${API_BASE_URL}/chat/send-message`, {
     correction_mode: 'sandwich',
     difficulty: 'starters',
     focus: ['vocabulary', 'pronunciation'],
-    target_vocab: ['dragon', 'powerful', 'fly'],
     emoji_usage: 'light',
     anti_loop: true,
     activity_preference: ['AB_choice', 'repeat_after_me'],

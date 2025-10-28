@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import conversationSettingsManager from '../services/conversationSettingsManager';
 import TopicSelection from './TopicSelection';
+import { getAvailableVoices } from '../services/ttsService';
 
 function ConversationSettings({
   isVisible,
@@ -25,6 +26,7 @@ function ConversationSettings({
   const [isInitialized, setIsInitialized] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [showTopicSelection, setShowTopicSelection] = React.useState(false);
+  const [availableVoices, setAvailableVoices] = React.useState(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']);
 
   // Initialize and subscribe to changes
   React.useEffect(() => {
@@ -46,6 +48,23 @@ function ConversationSettings({
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Fetch available voices from API
+  React.useEffect(() => {
+    const fetchVoices = async () => {
+      try {
+        const voices = await getAvailableVoices();
+        if (voices && voices.length > 0) {
+          setAvailableVoices(voices);
+        }
+      } catch (error) {
+        console.error('Error fetching voices:', error);
+        // Keep the default fallback voices already set in state
+      }
+    };
+    
+    fetchVoices();
   }, []);
 
   // Update functions that use conversationSettingsManager
@@ -286,7 +305,6 @@ function ConversationSettings({
                 {renderEnumSelector('Difficulty', 'difficulty', ['auto', 'starters', 'movers', 'flyers'])}
                 {renderMultiSelect('Focus Areas', 'focus', ['pronunciation', 'vocabulary', 'grammar', 'fluency'])}
                 {renderNumberSlider('Min Examples/Point', 'min_examples_per_point', 1, 5, 1)}
-                {renderNumberSlider('Scaffold Level', 'scaffold_level', 0, 3, 1)}
               </>
             ))}
 
@@ -295,11 +313,6 @@ function ConversationSettings({
               <>
                 {renderNumberSlider('Max Words/Sentence', 'max_sentence_words', 5, 20, 5)}
                 {renderNumberSlider('Max Sentences/Turn', 'max_sentences_per_turn', 1, 4, 1)}
-                {/* {renderEnumSelector('Emoji Usage', 'emoji_usage', ['off', 'light', 'medium'])} */}
-                {/* {renderEnumSelector('Bilingual Support', 'bilingual_support', ['off', 'keyword_gloss', 'brief_hint'], { */}
-                  {/* keyword_gloss: 'Keyword',
-                  brief_hint: 'Brief Hint'
-                })} */}
                 {renderToggle('IPA Pronunciation', 'ipa_pronunciation', 'Show phonetic symbols')}
                 {renderToggle('Phonics Hints', 'phonics_hints', 'Show phonics help')}
               </>
@@ -310,10 +323,7 @@ function ConversationSettings({
               <>
                 {renderToggle('Anti-Loop Protection', 'anti_loop', 'Prevent repetitive responses')}
                 {renderNumberSlider('Re-engage After', 'reengage_after_seconds', 15, 60, 15, 's')}
-                {renderEnumSelector('Re-engage Style', 'reengage_style', ['playful', 'calm', 'quiz'])}
-                {renderMultiSelect('Activity Preference', 'activity_preference', ['repeat_after_me', 'AB_choice', 'fill_blank', 'roleplay', 'counting', 'spelling_bee'])}
-                {renderEnumSelector('Praise Frequency', 'praise_frequency', ['low', 'normal', 'high'])}
-                {renderNumberSlider('Challenge Ratio', 'challenge_ratio', 0, 1, 0.2)}
+                {/* Removed: reengage_style, activity_preference, praise_frequency, challenge_ratio */}
               </>
             ))}
 
@@ -321,7 +331,6 @@ function ConversationSettings({
             {renderSection('Flow & Topic', 'flow', '🔄', (
               <>
                 {renderEnumSelector('Topic Strictness', 'topic_strictness', ['loose', 'normal', 'strict'])}
-                {/* {renderNumberSlider('Open Question Ratio', 'open_question_ratio', 0, 1, 0.1)} */}
                 {renderNumberSlider('Wrap-up After Turns', 'wrap_up_on_turns', 10, 30, 5)}
               </>
             ))}
@@ -330,23 +339,18 @@ function ConversationSettings({
             {renderSection('Safety & Content', 'safety', '🛡️', (
               <>
                 {renderToggle('Profanity Filter', 'profanity_filter', 'Block inappropriate content')}
-                {renderNumberSlider('Age Gate', 'age_gate', 3, 12, 1, ' yrs')}
               </>
             ))}
 
             {/* Voice & TTS Settings */}
             {renderSection('Voice & Speech', 'voice', '🎤', (
               <>
-                {renderEnumSelector('Voice Policy', 'voice_policy', ['per_level', 'fixed'], {
-                  per_level: 'Auto (by level)',
-                  fixed: 'Fixed Voice'
-                })}
                 
                 {/* Voice Selection */}
                 <View style={styles.optionRow}>
                   <Text style={styles.optionLabel}>Fixed Voice</Text>
                   <View style={styles.voiceGrid}>
-                    {['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'ash', 'sage', 'coral'].map((voice) => (
+                    {availableVoices.map((voice) => (
                       <TouchableOpacity
                         key={voice}
                         style={[

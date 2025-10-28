@@ -78,6 +78,62 @@ function blobToBase64(blob) {
   });
 }
 
+// Cache for TTS options to prevent repeated API calls
+let ttsOptionsCache = null;
+let ttsOptionsCacheTime = null;
+const TTS_CACHE_DURATION = 5 * 24 * 60 * 60 * 1000; // 5 * 24 hours cache duration
+
+/**
+ * Get available TTS options from backend with caching
+ * @returns {Promise<Object>} - Available voices and models
+ */
+export async function getTTSOptions() {
+  // Check if we have valid cached data
+  if (ttsOptionsCache && ttsOptionsCacheTime && 
+      (Date.now() - ttsOptionsCacheTime) < TTS_CACHE_DURATION) {
+    console.log('📦 Using cached TTS options');
+    return ttsOptionsCache;
+  }
+
+  try {
+    console.log('🌐 Fetching TTS options from API...');
+    const response = await axios.get(`${API_BASE_URL}/chat/tts-options`, {
+      timeout: 5000 // 5 second timeout
+    });
+    
+    // Cache the successful response
+    ttsOptionsCache = response.data;
+    ttsOptionsCacheTime = Date.now();
+    console.log('✅ TTS options cached successfully');
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error getting TTS options:', error);
+    
+    // If we have cached data (even if expired), use it as fallback
+    if (ttsOptionsCache) {
+      console.log('⚠️ Using expired cached TTS options as fallback');
+      return ttsOptionsCache;
+    }
+    
+    // Return default options if no cache and endpoint fails
+    // Valid OpenAI voices: nova, shimmer, echo, onyx, fable, alloy, ash, sage, coral
+    const defaultOptions = {
+      success: true,
+      data: {
+        voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'ash', 'sage', 'coral'],
+        models: ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts']
+      }
+    };
+    
+    // Cache the default options so we don't keep hitting the API
+    ttsOptionsCache = defaultOptions;
+    ttsOptionsCacheTime = Date.now();
+    
+    return defaultOptions;
+  }
+}
+
 /**
  * Check if TTS service is available
  * @returns {Promise<boolean>} - True if TTS service is available
@@ -85,16 +141,42 @@ function blobToBase64(blob) {
 export async function checkTTSServiceAvailability() {
   try {
     console.log('🔍 Checking TTS service availability...');
+    const options = await getTTSOptions();
     
-    const response = await axios.get(`${API_BASE_URL}/chat/tts-options`, {
-      timeout: 5000 // 5 second timeout
-    });
+    if (options && options.success && options.data) {
+      console.log('✅ TTS service is available');
+      return true;
+    }
     
-    console.log('✅ TTS service is available');
-    return true;
+    console.log('⚠️ TTS service not available: unexpected response format');
+    return false;
   } catch (error) {
     console.log('⚠️ TTS service not available:', error.message);
     return false;
+  }
+}
+
+/**
+ * Get available TTS voices from the API
+ * @returns {Promise<string[]>} - Array of available voice names
+ */
+export async function getAvailableVoices() {
+  try {
+    console.log('🔍 Fetching available voices...');
+    const options = await getTTSOptions();
+    
+    if (options && options.success && options.data && options.data.voices) {
+      console.log('✅ Voices fetched successfully:', options.data.voices);
+      return options.data.voices;
+    }
+    
+    // Fallback to default voices if API response is unexpected
+    console.log('⚠️ Unexpected API response format, using fallback voices');
+    return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+  } catch (error) {
+    console.log('⚠️ Error fetching voices, using fallback:', error.message);
+    // Fallback to default voices if API call fails
+    return ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
   }
 }
 
@@ -486,59 +568,6 @@ export async function isTTSSpeaking() {
   } catch (error) {
     console.error('❌ Check TTS speaking error:', error);
     return false;
-  }
-}
-
-// Cache for TTS options to prevent repeated API calls
-let ttsOptionsCache = null;
-let ttsOptionsCacheTime = null;
-const TTS_CACHE_DURATION = 5 * 24 * 60 * 60 * 1000; // 5 * 24 hours cache duration
-
-/**
- * Get available TTS options from backend with caching
- * @returns {Promise<Object>} - Available voices and models
- */
-export async function getTTSOptions() {
-  // Check if we have valid cached data
-  if (ttsOptionsCache && ttsOptionsCacheTime && 
-      (Date.now() - ttsOptionsCacheTime) < TTS_CACHE_DURATION) {
-    console.log('📦 Using cached TTS options');
-    return ttsOptionsCache;
-  }
-
-  try {
-    console.log('🌐 Fetching TTS options from API...');
-    const response = await axios.get(`${API_BASE_URL}/chat/tts-options`, {
-      timeout: 5000 // 5 second timeout
-    });
-    
-    // Cache the successful response
-    ttsOptionsCache = response.data;
-    ttsOptionsCacheTime = Date.now();
-    console.log('✅ TTS options cached successfully');
-    
-    return response.data;
-  } catch (error) {
-    console.error('Error getting TTS options:', error);
-    
-    // If we have cached data (even if expired), use it as fallback
-    if (ttsOptionsCache) {
-      console.log('⚠️ Using expired cached TTS options as fallback');
-      return ttsOptionsCache;
-    }
-    
-    // Return default options if no cache and endpoint fails
-    // Valid OpenAI voices: nova, shimmer, echo, onyx, fable, alloy, ash, sage, coral
-    const defaultOptions = {
-      voices: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'ash', 'sage', 'coral'],
-      models: ['tts-1', 'tts-1-hd']
-    };
-    
-    // Cache the default options so we don't keep hitting the API
-    ttsOptionsCache = defaultOptions;
-    ttsOptionsCacheTime = Date.now();
-    
-    return defaultOptions;
   }
 }
 
