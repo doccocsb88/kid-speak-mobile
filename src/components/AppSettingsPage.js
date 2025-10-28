@@ -64,7 +64,42 @@ function AppSettingsPage({ isVisible, onClose }) {
   };
 
   const handleReviewAppPress = () => {
-    Alert.alert('Review App', 'Thank you for your interest! App review feature coming soon.');
+    const appID = '6754305763';
+    
+    if (Platform.OS === 'ios') {
+      const reviewUrl = `itms-apps://itunes.apple.com/US/app/id${appID}?action=write-review`;
+      
+      Linking.canOpenURL(reviewUrl)
+        .then((supported) => {
+          if (supported) {
+            Linking.openURL(reviewUrl);
+          } else {
+            // Fallback to web URL if app store link doesn't work
+            const webUrl = `https://apps.apple.com/app/id${appID}?action=write-review`;
+            Linking.openURL(webUrl);
+          }
+        })
+        .catch((err) => {
+          console.error('Error opening review page:', err);
+          Alert.alert('Error', 'Could not open App Store review page');
+        });
+    } else {
+      // Android: Open Google Play Store review page
+      const playStoreUrl = 'market://details?id=com.kidspeak'; // Replace with your Android package name
+      
+      Linking.canOpenURL(playStoreUrl)
+        .then((supported) => {
+          if (supported) {
+            Linking.openURL(playStoreUrl);
+          } else {
+            Alert.alert('Error', 'Unable to open Play Store');
+          }
+        })
+        .catch((err) => {
+          console.error('Error opening Play Store:', err);
+          Alert.alert('Error', 'Could not open Play Store');
+        });
+    }
   };
 
   const handleContactUsPress = () => {
@@ -95,9 +130,14 @@ function AppSettingsPage({ isVisible, onClose }) {
 
   const handleShareAppPress = async () => {
     try {
+      const appStoreUrl = 'https://apps.apple.com/app/id6754305763';
+      const shareMessage = Platform.OS === 'ios'
+        ? `Check out KidSpeak - the amazing language learning app for kids! ${appStoreUrl}`
+        : 'Check out KidSpeak - the amazing language learning app for kids!';
+
       const result = await Share.share({
-        message: 'Check out KidSpeak - the amazing language learning app for kids!',
-        url: 'https://kidspeak.com', // Replace with actual app store URL
+        message: shareMessage,
+        url: Platform.OS === 'ios' ? appStoreUrl : undefined,
         title: 'KidSpeak App',
       });
 
@@ -118,8 +158,7 @@ function AppSettingsPage({ isVisible, onClose }) {
   };
 
   const handlePrivacyPolicyPress = () => {
-    const policyUrl = 'https://policies.google.com/privacy';
-    setWebViewSource({ uri: policyUrl });
+    setWebViewSource(require('../assets/privacy-policy.html'));
     setWebViewTitle('Privacy Policy');
     setShowWebView(true);
   };

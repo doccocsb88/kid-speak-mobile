@@ -10,7 +10,6 @@ import {
   ScrollView,
   StatusBar,
 } from 'react-native';
-import OnboardingDebug from './OnboardingDebug';
 
 const {width, height} = Dimensions.get('window');
 
@@ -71,15 +70,15 @@ const OnboardingScreen = ({onFinish}) => {
     }
   };
 
-  const handleSkip = () => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 500,
-      useNativeDriver: true,
-    }).start(() => {
-      if (onFinish) onFinish();
-    });
-  };
+  // const handleSkip = () => {
+  //   Animated.timing(fadeAnim, {
+  //     toValue: 0,
+  //     duration: 500,
+  //     useNativeDriver: true,
+  //   }).start(() => {
+  //     if (onFinish) onFinish();
+  //   });
+  // };
 
   const renderPage = (pageData, index) => {
     const isActive = index === currentPage;
@@ -97,14 +96,14 @@ const OnboardingScreen = ({onFinish}) => {
           {/* Content */}
           <View style={styles.contentContainer}>
             {/* Skip button (first 2 pages only) */}
-            {currentPage < onboardingData.length - 1 && (
+            {/* {currentPage < onboardingData.length - 1 && (
               <TouchableOpacity
                 style={styles.skipButton}
                 onPress={handleSkip}
                 activeOpacity={0.7}>
                 <Text style={styles.skipButtonText}>Skip</Text>
               </TouchableOpacity>
-            )}
+            )} */}
 
             {/* Bottom stack: text just above indicators, both anchored to bottom */}
             <View style={styles.bottomStack}>
@@ -153,12 +152,6 @@ const OnboardingScreen = ({onFinish}) => {
   return (
     <Animated.View style={[styles.container, {opacity: fadeAnim}]}>
       <StatusBar hidden={true} />
-      
-      {/* Debug component - remove in production */}
-      <OnboardingDebug onReset={() => {
-        // Force reload the app logic
-        handleSkip();
-      }} />
       
       <ScrollView
         ref={scrollViewRef}

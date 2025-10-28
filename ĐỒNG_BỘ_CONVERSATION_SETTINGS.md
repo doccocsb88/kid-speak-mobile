@@ -35,7 +35,6 @@ const options = {
   correction_mode: 'sandwich',
   difficulty: 'starters',
   focus: ['vocabulary', 'pronunciation'],
-  target_vocab: selectedTopic?.vocabulary || [],
   emoji_usage: 'light',
   anti_loop: true,
   activity_preference: ['AB_choice', 'repeat_after_me'],
@@ -52,7 +51,6 @@ const options = {
 // Dòng 318-322 (MỚI)
 const options = {
   ...getOptions(),
-  target_vocab: selectedTopic?.vocabulary || [],
 };
 ```
 
@@ -288,7 +286,6 @@ AI response theo settings mới
 - [x] Import `useConversationSettings` vào SpeakingScreen
 - [x] Thêm `getOptions()` hook usage
 - [x] Thay hardcoded options bằng `getOptions()`
-- [x] Keep `target_vocab` từ topic
 - [x] No linter errors
 - [x] Tạo documentation
 - [ ] Test trên device/emulator

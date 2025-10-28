@@ -35,7 +35,6 @@ const options = {
   correction_mode: 'sandwich',
   difficulty: 'starters',
   focus: ['vocabulary', 'pronunciation'],
-  target_vocab: selectedTopic?.vocabulary || [],
   emoji_usage: 'light',
   anti_loop: true,
   activity_preference: ['AB_choice', 'repeat_after_me'],
@@ -53,7 +52,6 @@ const options = {
 // Configure options for getOpenAIResponseV2 (from conversation settings)
 const options = {
   ...getOptions(),
-  target_vocab: selectedTopic?.vocabulary || [],
 };
 ```
 
@@ -63,7 +61,6 @@ const options = {
 // Already correct (Line 478-481)
 const options = {
   ...getOptions(),
-  target_vocab: selectedTopic?.vocabulary || [],
 };
 ```
 
@@ -184,7 +181,6 @@ const { getOptions } = useConversationSettings();
 // Both screens now configure options identically:
 const options = {
   ...getOptions(),
-  target_vocab: selectedTopic?.vocabulary || [],
 };
 ```
 

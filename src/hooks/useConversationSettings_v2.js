@@ -13,7 +13,6 @@ const OPTIONS_DEFAULT = {
   correction_mode: 'explicit',
   difficulty: 'auto',
   focus: ['vocabulary', 'pronunciation'],
-  target_vocab: [],
   min_examples_per_point: 1,
   scaffold_level: 1,
 
@@ -34,7 +33,6 @@ const OPTIONS_DEFAULT = {
 
   // Flow & topic control
   topic_strictness: 'normal',
-  open_question_ratio: 0.3,
   wrap_up_on_turns: 14,
 
   // Safety & content

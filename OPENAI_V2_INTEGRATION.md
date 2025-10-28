@@ -20,7 +20,6 @@ Successfully integrated `getOpenAIResponseV2` with full options support across t
   - `correction_mode: 'sandwich'`
   - `difficulty: 'starters'`
   - `focus: ['vocabulary', 'pronunciation']`
-  - `target_vocab: selectedTopic?.vocabulary || []`
   - `emoji_usage: 'light'`
   - `anti_loop: true`
   - `activity_preference: ['AB_choice', 'repeat_after_me']`
