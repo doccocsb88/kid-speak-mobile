@@ -70,10 +70,68 @@ function ChatPage({ navigation }) {
   const messagesRef = useRef(messages); // Add ref to always have latest messages
   const inputRef = useRef(null); // Add ref for TextInput to maintain focus
 
+  // 🎬 SCREENSHOT MODE - Set to true to load sample conversation for AppStore preview
+  const SCREENSHOT_MODE = true; // Change to true when taking screenshots
+
   // Update messagesRef whenever messages change
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  // 🎬 Load sample conversation for screenshot mode
+  const loadSampleConversation = () => {
+    const sampleMessages = [
+      {
+        sender: 'ai',
+        text: "Hey there! 👋 Tell me, what's your favorite part of the day? Morning, afternoon, or evening?"
+      },
+      {
+        sender: 'user',
+        text: "I love the afternoon! I play with my friends!"
+      },
+      {
+        sender: 'ai',
+        text: "That sounds so fun! 🎮 What games do you play together? Tag, hide and seek, or video games?"
+      },
+      {
+        sender: 'user',
+        text: "We play soccer at the park! ⚽"
+      },
+      {
+        sender: 'ai',
+        text: "Awesome! ⚽️ Soccer is great exercise! How long do you usually play? And do you drink water after playing?"
+      },
+      {
+        sender: 'user',
+        text: "We play for one hour. Yes, I always drink water!"
+      },
+      {
+        sender: 'ai',
+        text: "Perfect! 💧 You're doing everything right! After playing soccer, what do you do next? Homework or dinner time?"
+      }
+    ];
+    
+    setMessages(sampleMessages);
+    setSelectedTopic({ 
+      id: 'daily-activities', 
+      title: 'Daily Activities',
+      description: 'Learn to talk about your everyday routines',
+      icon: '📅'
+    });
+    setShowTopicSelection(false);
+    
+    console.log('🎬 Screenshot mode: Sample conversation loaded for Daily Activities');
+  };
+
+  // Load sample conversation when SCREENSHOT_MODE is enabled
+  useEffect(() => {
+    if (SCREENSHOT_MODE) {
+      // Delay to ensure UI is fully loaded
+      setTimeout(() => {
+        loadSampleConversation();
+      }, 500);
+    }
+  }, [SCREENSHOT_MODE]);
 
   // Load TTS options and initialize settings manager
   useEffect(() => {

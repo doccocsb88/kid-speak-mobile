@@ -107,6 +107,9 @@ export default function SpeakingScreen({
   const { getOptions } = useConversationSettings();
   const navigation = useNavigation();
 
+  // 🎬 SCREENSHOT MODE - Set to true to load sample conversation for AppStore preview
+  const SCREENSHOT_MODE = true; // Change to true when taking screenshots
+
   // === State for conversation messages ===
   const [conversationMessages, setConversationMessages] = useState(initialMessages);
 
@@ -150,6 +153,44 @@ export default function SpeakingScreen({
     conversationSettingsManager.setSpeechRate(newRate);
   };
 
+  // 🎬 Load sample conversation for screenshot mode
+  const loadSampleConversation = () => {
+    const sampleMessages = [
+      {
+        sender: 'user',
+        text: "I wake up at 7 o'clock every morning!"
+      },
+      {
+        sender: 'ai',
+        text: "That's great! 🌅 7 o'clock is a good time to wake up! What do you do after waking up?"
+      },
+      {
+        sender: 'user',
+        text: "I take a shower and get dressed for school."
+      },
+      {
+        sender: 'ai',
+        text: "Perfect! 🚿 Taking a shower in the morning helps you feel fresh! Do you eat breakfast before going to school?"
+      },
+      {
+        sender: 'user',
+        text: "Yes! I usually eat cereal and drink orange juice."
+      },
+      {
+        sender: 'ai',
+        text: "Excellent! 🥣🍊 Breakfast is the most important meal of the day! It gives you energy for learning. What time do you go to bed at night?"
+      }
+    ];
+    
+    setConversationMessages(sampleMessages);
+    
+    // Set sample transcript to show in UI
+    dispatch({ type: 'TRANSCRIPT_UPDATE', text: "Yes! I usually eat cereal and drink orange juice." });
+    dispatch({ type: 'SET_AI_TEXT', text: "Excellent! 🥣🍊 Breakfast is the most important meal of the day! It gives you energy for learning. What time do you go to bed at night?" });
+    
+    console.log('🎬 Screenshot mode: Sample conversation loaded for Speaking Screen - Daily Activities');
+  };
+
   // === Animations ===
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const userBubbleAnim = useRef(new Animated.Value(0)).current;
@@ -171,6 +212,21 @@ export default function SpeakingScreen({
     isProcessingRef.current = (S.state === STATES.REQUESTING || S.state === STATES.PLAYING);
   }, [S.state]);
   useEffect(() => { gateBlockedRef.current = premiumRequired; }, [premiumRequired]);
+
+  // 🎬 Load sample conversation when SCREENSHOT_MODE is enabled
+  useEffect(() => {
+    if (SCREENSHOT_MODE) {
+      // Delay to ensure UI is fully loaded and animations are ready
+      const timer = setTimeout(() => {
+        loadSampleConversation();
+        // Show both bubbles for screenshot
+        showUserBubble();
+        showAiBubble();
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [SCREENSHOT_MODE]);
 
   const openPaywall = () => {
     try {
@@ -226,6 +282,12 @@ export default function SpeakingScreen({
 
   // === Voice listeners (bind once) ===
   useEffect(() => {
+    // Skip Voice setup in screenshot mode
+    if (SCREENSHOT_MODE) {
+      console.log('🎬 Screenshot mode: Skipping Voice listeners setup');
+      return;
+    }
+    
     Voice.onSpeechStart = () => {
       if (gateBlockedRef.current) {
         console.log('[Voice] Ignoring speech start - premium gate active');
@@ -634,6 +696,12 @@ export default function SpeakingScreen({
 
   // Autostart listening on mount with delay to avoid iOS reuse error
   useEffect(() => {
+    // Skip autostart if in screenshot mode
+    if (SCREENSHOT_MODE) {
+      console.log('🎬 Screenshot mode: Skipping autostart listening');
+      return;
+    }
+    
     // Add small delay to ensure clean state after navigation
     const timer = setTimeout(() => {
       startListening();
