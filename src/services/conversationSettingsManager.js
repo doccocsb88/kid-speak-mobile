@@ -12,7 +12,6 @@ const OPTIONS_DEFAULT = {
   correction_mode: 'explicit',
   difficulty: 'auto',
   focus: ['vocabulary', 'pronunciation'],
-  min_examples_per_point: 1,
 
   // Language shaping
   max_sentence_words: 10,
@@ -23,12 +22,11 @@ const OPTIONS_DEFAULT = {
 
   // Engagement & game mechanics
   anti_loop: true,
-  reengage_after_seconds: 30,
-  // Removed: reengage_style, activity_preference, praise_frequency, challenge_ratio
+  // Removed: reengage_after_seconds, reengage_style, activity_preference, praise_frequency, challenge_ratio
 
   // Flow & topic control
   topic_strictness: 'normal',
-  wrap_up_on_turns: 14,
+  // Removed: wrap_up_on_turns
 
   // Safety & content
   banned_topics: [],

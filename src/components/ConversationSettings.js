@@ -304,7 +304,6 @@ function ConversationSettings({
                 {renderEnumSelector('Correction Mode', 'correction_mode', ['implicit', 'explicit', 'sandwich'])}
                 {renderEnumSelector('Difficulty', 'difficulty', ['auto', 'starters', 'movers', 'flyers'])}
                 {renderMultiSelect('Focus Areas', 'focus', ['pronunciation', 'vocabulary', 'grammar', 'fluency'])}
-                {renderNumberSlider('Min Examples/Point', 'min_examples_per_point', 1, 5, 1)}
               </>
             ))}
 
@@ -322,8 +321,6 @@ function ConversationSettings({
             {renderSection('Engagement & Games', 'engagement', '🎮', (
               <>
                 {renderToggle('Anti-Loop Protection', 'anti_loop', 'Prevent repetitive responses')}
-                {renderNumberSlider('Re-engage After', 'reengage_after_seconds', 15, 60, 15, 's')}
-                {/* Removed: reengage_style, activity_preference, praise_frequency, challenge_ratio */}
               </>
             ))}
 
@@ -331,7 +328,6 @@ function ConversationSettings({
             {renderSection('Flow & Topic', 'flow', '🔄', (
               <>
                 {renderEnumSelector('Topic Strictness', 'topic_strictness', ['loose', 'normal', 'strict'])}
-                {renderNumberSlider('Wrap-up After Turns', 'wrap_up_on_turns', 10, 30, 5)}
               </>
             ))}
 

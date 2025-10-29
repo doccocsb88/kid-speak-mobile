@@ -9,7 +9,7 @@ const TOPICS = [
     icon: '🗣️',
     description: 'Practice everyday conversations and general speaking skills. Focus on polite expressions, greetings, and basic social interactions.',
     vocabulary: ['hello', 'thank you', 'please', 'sorry', 'goodbye', 'how are you', 'nice to meet you', 'excuse me'],
-    ageRange: '6-11'
+    ageRange: '5-11'
   },
   {
     id: 'daily-activities',
@@ -17,7 +17,7 @@ const TOPICS = [
     icon: '🌅',
     description: 'Talk about what you do every day from morning to night. Learn about daily routines, time expressions, and everyday activities like eating, playing, and sleeping.',
     vocabulary: ['wake up', 'breakfast', 'lunch', 'dinner', 'sleep', 'play', 'study', 'brush teeth'],
-    ageRange: '6-11'
+    ageRange: '5-11'
   },
   {
     id: 'animals',
@@ -25,7 +25,7 @@ const TOPICS = [
     icon: '🐶',
     description: 'Learn about pets, farm animals, and wild animals. Talk about animal sounds, habitats, and characteristics. Use fun animal activities and games.',
     vocabulary: ['dog', 'cat', 'bird', 'fish', 'cow', 'pig', 'lion', 'elephant'],
-    ageRange: '6-11'
+    ageRange: '5-11'
   },
   {
     id: 'colors',
@@ -33,7 +33,7 @@ const TOPICS = [
     icon: '🌈',
     description: 'Discover all the beautiful colors around us. Practice identifying colors of objects, mixing colors, and describing things by their colors.',
     vocabulary: ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'black'],
-    ageRange: '6-8'
+    ageRange: '5-11'
   },
   {
     id: 'family',
@@ -41,7 +41,7 @@ const TOPICS = [
     icon: '👨‍👩‍👧‍👦',
     description: 'Meet your family members and relatives. Talk about family relationships, family activities, and introduce family members.',
     vocabulary: ['mother', 'father', 'sister', 'brother', 'grandmother', 'grandfather', 'baby'],
-    ageRange: '6-9'
+    ageRange: '5-11'
   },
   {
     id: 'food',
@@ -49,7 +49,7 @@ const TOPICS = [
     icon: '🍎',
     description: 'Explore delicious foods and drinks. Discuss favorite foods, healthy eating, meal times, and food preferences.',
     vocabulary: ['apple', 'banana', 'bread', 'milk', 'water', 'cake', 'pizza', 'rice'],
-    ageRange: '6-11'
+    ageRange: '5-11'
   },
   {
     id: 'numbers',
@@ -57,7 +57,7 @@ const TOPICS = [
     icon: '🔢',
     description: 'Count from 1 to 20 and learn basic math. Practice counting, simple addition, and number recognition through games and activities.',
     vocabulary: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'],
-    ageRange: '6-8'
+    ageRange: '5-11'
   },
   {
     id: 'body',
@@ -65,7 +65,7 @@ const TOPICS = [
     icon: '👤',
     description: 'Learn about your body and how to take care of it. Identify body parts, discuss body functions, and learn about hygiene and health.',
     vocabulary: ['head', 'eyes', 'nose', 'mouth', 'hands', 'feet', 'ears', 'legs'],
-    ageRange: '7-10'
+    ageRange: '5-11'
   },
   {
     id: 'clothes',
@@ -73,7 +73,7 @@ const TOPICS = [
     icon: '👕',
     description: 'Dress up and learn about different clothes. Talk about what to wear for different occasions, weather, and personal style.',
     vocabulary: ['shirt', 'pants', 'dress', 'shoes', 'hat', 'socks', 'jacket', 'skirt'],
-    ageRange: '7-11'
+    ageRange: '5-11'
   },
   {
     id: 'weather',
@@ -81,7 +81,7 @@ const TOPICS = [
     icon: '☀️',
     description: 'Talk about sunny, rainy, and snowy days. Describe weather conditions, seasons, and appropriate activities for different weather.',
     vocabulary: ['sunny', 'rainy', 'cloudy', 'windy', 'hot', 'cold', 'warm', 'cool'],
-    ageRange: '8-11'
+    ageRange: '5-11'
   },
   {
     id: 'school',
@@ -89,7 +89,7 @@ const TOPICS = [
     icon: '🎒',
     description: 'Learn about school, teachers, and friends. Discuss school activities, subjects, classroom objects, and school life.',
     vocabulary: ['teacher', 'student', 'book', 'pencil', 'desk', 'chair', 'classroom', 'playground'],
-    ageRange: '6-11'
+    ageRange: '5-11'
   },
   {
     id: 'toys',
@@ -97,7 +97,7 @@ const TOPICS = [
     icon: '🧸',
     description: 'Play with your favorite toys and games. Talk about favorite toys, how to play with them, and sharing toys with friends.',
     vocabulary: ['doll', 'ball', 'car', 'toy', 'game', 'puzzle', 'blocks', 'teddy bear'],
-    ageRange: '6-9'
+    ageRange: '5-11'
   },
   {
     id: 'history',
@@ -105,7 +105,7 @@ const TOPICS = [
     icon: '📜',
     description: 'Travel back in time to learn about important people and events. Explore simple timelines, inventions, and how life used to be.',
     vocabulary: ['past', 'king', 'queen', 'timeline', 'invention', 'village', 'empire', 'museum'],
-    ageRange: '8-11'
+    ageRange: '5-11'
   },
   {
     id: 'geography',
@@ -113,7 +113,7 @@ const TOPICS = [
     icon: '🌍',
     description: 'Discover countries, maps, and landforms. Learn about continents, oceans, and places around the world.',
     vocabulary: ['map', 'country', 'city', 'mountain', 'river', 'ocean', 'continent', 'island'],
-    ageRange: '8-11'
+    ageRange: '5-11'
   },
   {
     id: 'science',
@@ -121,7 +121,7 @@ const TOPICS = [
     icon: '🔬',
     description: 'Explore experiments, energy, and living things. Learn how the world works through fun discoveries.',
     vocabulary: ['experiment', 'energy', 'plant', 'animal', 'gravity', 'matter', 'solid', 'liquid'],
-    ageRange: '8-11'
+    ageRange: '5-11'
   }
 ];
 
