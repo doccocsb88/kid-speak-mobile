@@ -5,6 +5,9 @@
 // - Bind Voice listeners once ([], use refs inside)
 // - Arm 2s timer on results AND onSpeechEnd (if transcript exists)
 
+// Feature flag to enable/disable auto-prompt feature
+const ENABLE_AUTOPROMPT = false;
+
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import {
   View,

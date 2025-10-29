@@ -12,6 +12,7 @@ import {
   StatusBar,
   Platform,
   Dimensions,
+  ImageBackground,
 } from 'react-native';
 import {WebView} from 'react-native-webview';
 import NativeIAPService from '../services/nativeIapService';
@@ -20,6 +21,7 @@ import UserManager from '../services/UserManager';
 // Get screen dimensions
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 const isSmallDevice = SCREEN_HEIGHT < 700;
+const isLargeDevice = SCREEN_HEIGHT > 812;
 
 // Common features for all plans
 const COMMON_FEATURES = [
@@ -242,22 +244,18 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
       />
       
       {/* Show content only when we have products OR when not in initial loading */}
-      {products.length === 0 && loading ? (
-        // Initial loading - show only loading screen
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#6C5CE7" />
-            <Text style={styles.loadingText}>Loading subscription plans...</Text>
-          </View>
-        </View>
-      ) : (
+      {
         // Main content
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
-          <View style={styles.header}>
+          <ImageBackground 
+            source={require('../assets/images/paywallheader.png')}
+            style={styles.header}
+            resizeMode="cover"
+          >
           <TouchableOpacity 
             style={styles.closeButton} 
             onPress={handleClose}
@@ -267,12 +265,6 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
           </TouchableOpacity>
           
           <View style={styles.headerContent}>
-            {/* <Text style={styles.emoji}>🚀</Text> */}
-            {/* <Text style={styles.title}>Unlock Full Access</Text> */}
-            {/* <Text style={styles.subtitle}>
-              Get unlimited conversations and premium features
-            </Text> */}
-            
             {/* Features List */}
             <View style={styles.featuresInHeader}>
               {COMMON_FEATURES.map((feature, index) => (
@@ -283,7 +275,7 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
               ))}
             </View>
           </View>
-        </View>
+        </ImageBackground>
 
         {/* Subscription Plans */}
         <View style={styles.plansContainer}>
@@ -376,14 +368,16 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
           </Text>
         </View>
         </ScrollView>
-      )}
+      }
 
       {/* Loading Overlay - when performing actions */}
-      {loading && products.length > 0 && (
+      {loading && (
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
             <ActivityIndicator size="large" color="#6C5CE7" />
-            <Text style={styles.loadingText}>Processing...</Text>
+            <Text style={styles.loadingText}>
+              {products.length > 0 ? 'Processing...' : 'Loading subscription plans'}
+            </Text>
           </View>
         </View>
       )}
@@ -494,12 +488,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   header: {
-    backgroundColor: '#6C5CE7',
     paddingTop: StatusBar.currentHeight || 50,
-    paddingBottom: isSmallDevice ? 10 : 15,
+    paddingBottom: isLargeDevice ? 5 : (isSmallDevice ? 5 : 5),
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+    overflow: 'hidden',
+    minHeight: isLargeDevice ? 280 : (isSmallDevice ? 180 : 220),
   },
   closeButton: {
     alignSelf: 'flex-end',
@@ -515,15 +510,16 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 20,
     fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 3,
   },
   headerContent: {
     alignItems: 'center',
-    marginTop: isSmallDevice ? 0 : 5,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  emoji: {
-    fontSize: 60,
-    marginBottom: 15,
-  },
+
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -539,8 +535,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   featuresInHeader: {
-    marginTop: isSmallDevice ? 0 : 5,
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 15,
+    marginBottom: 0,
   },
   plansContainer: {
     paddingHorizontal: 20,
@@ -653,12 +653,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginRight: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: 0, height: 2},
+    textShadowRadius: 4,
   },
   featureText: {
     fontSize: 14,
     color: '#FFF',
     flex: 1,
     fontWeight: '500',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: {width: 0, height: 2},
+    textShadowRadius: 4,
   },
   subscribeButton: {
     backgroundColor: '#6C5CE7',

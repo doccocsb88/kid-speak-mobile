@@ -18,6 +18,9 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
+
+// Feature flag to enable/disable auto-prompt feature
+const ENABLE_AUTOPROMPT = false;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -322,6 +325,11 @@ function ChatPage({ navigation }) {
 
   // Reset timeout timer
   const schedulerTimerToSendAutoPrompt = () => {
+    // Skip if auto-prompt feature is disabled
+    if (!ENABLE_AUTOPROMPT) {
+      return;
+    }
+    
     lastInteractionRef.current = Date.now();
     clearUserTimeout();
     
@@ -336,6 +344,11 @@ function ChatPage({ navigation }) {
 
   // Handle auto-prompt when student doesn't respond
   const handleAutoPrompt = async () => {
+    // Skip if auto-prompt feature is disabled
+    if (!ENABLE_AUTOPROMPT) {
+      return;
+    }
+    
     try {
       // Block auto-prompt when out of daily requests (no paywall shown)
       try {
