@@ -346,6 +346,16 @@ const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.
           })}
         </View>
 
+        {/* Continue with Limited Version Button */}
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={handleClose}
+          disabled={loading}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.continueButtonText}>Continue with Limited Version</Text>
+        </TouchableOpacity>
+
         {/* Subscribe Button */}
         <TouchableOpacity
           style={[styles.subscribeButton, loading && styles.subscribeButtonDisabled]}
@@ -485,7 +495,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   loadingCard: {
-    width: 200,
+    width: 250,
     height: 100,
     backgroundColor: '#FFF',
     borderRadius: 16,
@@ -709,6 +719,20 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  continueButton: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueButtonText: {
+    color: '#7F8C8D',
+    fontSize: 15,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   restoreButton: {
     marginHorizontal: 20,
