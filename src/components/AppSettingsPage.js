@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import PaywallScreen from './PaywallScreen';
+import PaywallScreen, { StoreType } from './PaywallScreen';
 
 function AppSettingsPage({ isVisible, onClose }) {
   const insets = useSafeAreaInsets();
@@ -104,7 +104,7 @@ function AppSettingsPage({ isVisible, onClose }) {
 
   const handleContactUsPress = () => {
     const email = 'support@kidspeak.com';
-    const subject = 'KidSpeak App Support';
+    const subject = 'SpeakFun AI App Support';
     const body = 'Hello,\n\nI need help with:\n\n';
     
     const emailUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -132,13 +132,13 @@ function AppSettingsPage({ isVisible, onClose }) {
     try {
       const appStoreUrl = 'https://apps.apple.com/app/id6754305763';
       const shareMessage = Platform.OS === 'ios'
-        ? `Check out KidSpeak - the amazing language learning app for kids! ${appStoreUrl}`
-        : 'Check out KidSpeak - the amazing language learning app for kids!';
+        ? `Check out SpeakFun AI - the amazing language learning app for kids! ${appStoreUrl}`
+        : 'Check out SpeakFun AI - the amazing language learning app for kids!';
 
       const result = await Share.share({
         message: shareMessage,
         url: Platform.OS === 'ios' ? appStoreUrl : undefined,
-        title: 'KidSpeak App',
+        title: 'SpeakFun AI App',
       });
 
       if (result.action === Share.sharedAction) {
@@ -298,6 +298,7 @@ function AppSettingsPage({ isVisible, onClose }) {
         onRequestClose={() => setShowPaywall(false)}
       >
         <PaywallScreen
+          storeType={StoreType.STORE}
           onClose={() => setShowPaywall(false)}
           onSubscribe={(planId) => {
             console.log('Subscribed to:', planId);

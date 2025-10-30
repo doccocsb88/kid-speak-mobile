@@ -71,7 +71,7 @@ function UserInfo({ onUserInfoSubmit, initialData }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>👋 Welcome to KidSpeak!</Text>
+        <Text style={styles.title}>👋 Welcome to SpeakFun AI!</Text>
         <Text style={styles.subtitle}>Let's get to know you better before we start learning English together!</Text>
       </View>
       

@@ -23,6 +23,12 @@ const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 const isSmallDevice = SCREEN_HEIGHT < 700;
 const isLargeDevice = SCREEN_HEIGHT > 812;
 
+// Store Type Enum
+export const StoreType = {
+  DIRECT_STORE: 'directStore',
+  STORE: 'store',
+};
+
 // Common features for all plans
 const COMMON_FEATURES = [
   'Full access to all features',
@@ -62,7 +68,7 @@ const SUBSCRIPTION_PLANS = [
   },
 ];
 
-const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
+const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.DIRECT_STORE}) => {
   const [selectedPlan, setSelectedPlan] = useState('com.kidspeak.mobile.monthly1');
   const [loading, setLoading] = useState(false);
   const [iapReady, setIapReady] = useState(false);
@@ -151,22 +157,37 @@ const PaywallScreen = ({navigation, onSubscribe, onClose}) => {
         onSubscribe(selectedPlan);
       }
       
-      Alert.alert(
-        'Success!',
-        `You have successfully subscribed to ${plan.title}!`,
-        [
-          {
-            text: 'Start Learning',
-            onPress: () => {
-              if (onClose) {
-                onClose();
-              } else if (navigation) {
-                navigation.goBack();
+      // If storeType is directStore, dismiss immediately
+      if (storeType === StoreType.DIRECT_STORE) {
+        Alert.alert(
+          'Success!',
+          `You have successfully subscribed to ${plan.title}!`,
+          [
+            {
+              text: 'Start Learning',
+              onPress: () => {
+                if (onClose) {
+                  onClose();
+                } else if (navigation) {
+                  navigation.goBack();
+                }
               }
             }
-          }
-        ]
-      );
+          ]
+        );
+      } else {
+        // If storeType is store, don't dismiss - just show success message
+        Alert.alert(
+          'Success!',
+          `You have successfully subscribed to ${plan.title}!`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {}
+            }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Subscription error:', error);
       Alert.alert(
