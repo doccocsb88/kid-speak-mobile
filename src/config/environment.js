@@ -19,7 +19,7 @@ const config = {
   API_BASE_URL: getApiUrl(),
   
   // App Configuration
-  APP_NAME: 'KidSpeak',
+  APP_NAME: 'SpeakFun AI',
   APP_VERSION: '1.0.0',
   
   // Feature Flags

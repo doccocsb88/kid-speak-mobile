@@ -22,7 +22,7 @@ const OnboardingScreen = ({onFinish}) => {
     {
       id: 1,
       backgroundImage: require('../assets/images/onb_page1.png'),
-      title: 'Welcome to KidSpeak!',
+      title: 'Welcome to SpeakFun AI!',
       subtitle: 'Speak • Learn • Grow Together',
       description: 'Start your amazing journey of language learning and fun conversations.',
       buttonText: 'Next',
@@ -42,7 +42,7 @@ const OnboardingScreen = ({onFinish}) => {
       backgroundImage: require('../assets/images/onb_page3.png'),
       title: 'Ready to Start!',
       subtitle: 'Let\'s Begin Your Adventure',
-      description: 'You\'re all set! Begin speaking, learning, and growing with KidSpeak.',
+      description: 'You\'re all set! Begin speaking, learning, and growing with SpeakFun AI.',
       buttonText: 'Get Started',
       buttonColor: '#45B7D1',
     },

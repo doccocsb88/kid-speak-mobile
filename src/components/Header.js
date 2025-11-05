@@ -15,8 +15,8 @@ function Header({ onMenuPress, onSettingsPress, hideSettingsButton = false }) {
 
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>
-          <Text style={styles.kidText}>KID</Text>
-          <Text style={styles.speakText}> SPEAK</Text>
+          <Text style={styles.kidText}>SpeakFun</Text>
+          <Text style={styles.speakText}> AI</Text>
         </Text>
       </View>
    

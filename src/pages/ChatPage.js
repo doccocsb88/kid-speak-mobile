@@ -18,13 +18,16 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
+
+// Feature flag to enable/disable auto-prompt feature
+const ENABLE_AUTOPROMPT = false;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import ChatBubble from '../components/ChatBubble';
-import TopicSelection from '../components/TopicSelection';
+import TopicSelection, { FRIENDS } from '../components/TopicSelection';
 import SideMenu from '../components/SideMenu';
 import AppSettingsPage from '../components/AppSettingsPage';
 import ConversationSettings from '../components/ConversationSettings';
@@ -380,6 +383,11 @@ function ChatPage({ navigation }) {
 
   // Reset timeout timer
   const schedulerTimerToSendAutoPrompt = () => {
+    // Skip if auto-prompt feature is disabled
+    if (!ENABLE_AUTOPROMPT) {
+      return;
+    }
+    
     lastInteractionRef.current = Date.now();
     clearUserTimeout();
     
@@ -394,6 +402,11 @@ function ChatPage({ navigation }) {
 
   // Handle auto-prompt when student doesn't respond
   const handleAutoPrompt = async () => {
+    // Skip if auto-prompt feature is disabled
+    if (!ENABLE_AUTOPROMPT) {
+      return;
+    }
+    
     try {
       // Block auto-prompt when out of daily requests (no paywall shown)
       try {
@@ -567,6 +580,48 @@ function ChatPage({ navigation }) {
     }
   }, [showSideMenu]);
 
+  // Generate appropriate greeting based on topic type
+  const generateGreeting = (topic, userInfo) => {
+    const studentName = userInfo?.name || 'there';
+    
+    // Check if this is a friend topic
+    if (topic?.id?.startsWith('friend_')) {
+      // Extract friend id from topic id (format: "friend_emma" -> "emma")
+      const friendId = topic.id.replace('friend_', '');
+      
+      // Find friend data from FRIENDS array
+      const friend = FRIENDS.find(f => f.id === friendId);
+      
+      if (friend) {
+        // Use original friend description and convert to first person
+        let personalizedDescription = friend.description
+          .replace(new RegExp(friend.name, 'g'), 'I')
+          .replace(/\bShe is\b/g, "I'm")
+          .replace(/\bHe is\b/g, "I'm")
+          .replace(/\bShe loves\b/g, 'I love')
+          .replace(/\bHe loves\b/g, 'I love')
+          .replace(/\bShe enjoys\b/g, 'I enjoy')
+          .replace(/\bHe enjoys\b/g, 'I enjoy')
+          .replace(/\bShe\b/g, 'I')
+          .replace(/\bHe\b/g, 'I')
+          .replace(/\bher\b/g, 'my')
+          .replace(/\bhis\b/g, 'my');
+        
+        // Get top 3 interests for introduction
+        const interests = friend.interests.slice(0, Math.min(3, friend.interests.length)).join(', ');
+        
+        return `Hi ${studentName}! I'm ${friend.name}! ${personalizedDescription} My favorite topics are ${interests}. What about you? What do you like?`;
+      }
+      
+      // Fallback if friend not found
+      const friendName = topic.title?.replace('Chat with ', '') || 'your friend';
+      return `Hi ${studentName}! I'm ${friendName}, and I'm excited to chat with you today! What would you like to talk about?`;
+    }
+    
+    // Regular topic greeting
+    return OfflineService.generateTopicGreeting(topic, userInfo);
+  };
+
   // Handle topic selection (synchronized with settings manager)
   const handleTopicSelect = async (topic) => {
     console.log('[TopicSelect] Starting new topic flow:', topic.title);
@@ -594,8 +649,7 @@ function ChatPage({ navigation }) {
     }
     
     // Start the lesson with the selected topic, using student's name
-    const studentName = userInfo?.name || 'there';
-    const topicGreeting = OfflineService.generateTopicGreeting(topic, userInfo);
+    const topicGreeting = generateGreeting(topic, userInfo);
     
     const initialMessages = [{ sender: 'ai', text: topicGreeting }];
     setMessages(initialMessages);
@@ -1095,7 +1149,7 @@ function ChatPage({ navigation }) {
               }
               
               // Start the lesson with the selected topic and greeting message
-              const topicGreeting = OfflineService.generateTopicGreeting(topic, userInfo);
+              const topicGreeting = generateGreeting(topic, userInfo);
               const initialMessages = [{ sender: 'ai', text: topicGreeting }];
               setMessages(initialMessages);
               
