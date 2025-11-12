@@ -99,7 +99,7 @@ class KSPurchaseManager(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun purchaseProduct(productId: String, promise: Promise) {
-        val activity = currentActivity
+        val activity: Activity? = getCurrentActivity()
         if (activity == null) {
             promise.reject("NO_ACTIVITY", "Activity not available")
             return
