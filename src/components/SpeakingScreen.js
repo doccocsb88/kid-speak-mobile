@@ -31,6 +31,7 @@ import conversationSettingsManager from '../services/conversationSettingsManager
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import userManager from '../services/UserManager';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ====== State Machine ======
 const STATES = {
@@ -110,6 +111,7 @@ export default function SpeakingScreen({
   const { isAuthenticated } = useAuth();
   const { getOptions } = useConversationSettings();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   // === State for conversation messages ===
   const [conversationMessages, setConversationMessages] = useState(initialMessages);
@@ -802,7 +804,7 @@ export default function SpeakingScreen({
 
   return (
     <ImageBackground source={require('../assets/images/speak_bg.png')} style={styles.container} resizeMode="cover">
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : Math.max(insets.top, 20) }]}>
         <TouchableOpacity
           style={[styles.backButton, isBusy && styles.disabledButton]}
           disabled={isBusy}
@@ -947,7 +949,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   mainContent: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   centerArea: { flex: 1, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 50 : 20, paddingBottom: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 10 },
   backButton: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
   backButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   logoContainer: { flex: 1, alignItems: 'center' },

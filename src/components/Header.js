@@ -1,11 +1,13 @@
 // src/components/Header.js
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function Header({ onMenuPress, onSettingsPress, hideSettingsButton = false }) {
+  const insets = useSafeAreaInsets();
+  
   const HeaderContent = (
-    <View style={styles.header}>
+    <View style={[styles.header, Platform.OS === 'android' && { paddingTop: Math.max(insets.top, 16) }]}>
        <TouchableOpacity 
         style={styles.menuButton}
         onPress={onMenuPress}
@@ -51,7 +53,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'transparent',
-    paddingVertical: 16,
+    paddingBottom: 16,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
