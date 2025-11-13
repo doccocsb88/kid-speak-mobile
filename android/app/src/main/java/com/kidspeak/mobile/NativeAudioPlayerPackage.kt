@@ -5,10 +5,9 @@ import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.uimanager.ViewManager
 
-class KSPurchasePackage : ReactPackage {
-    @Suppress("DEPRECATION")
+class NativeAudioPlayerPackage : ReactPackage {
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(KSPurchaseManager(reactContext))
+        return listOf(NativeAudioPlayerModule(reactContext))
     }
 
     override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> {

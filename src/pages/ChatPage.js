@@ -32,8 +32,8 @@ import SideMenu from '../components/SideMenu';
 import AppSettingsPage from '../components/AppSettingsPage';
 import ConversationSettings from '../components/ConversationSettings';
 import SpeakingScreen from '../components/SpeakingScreen';
-import { speakText, getTTSOptions } from '../services/ttsService';
-import nativeAudioService from '../services/nativeAudioService';
+import { getTTSOptions } from '../services/ttsService';
+import { playAudioOrTTS, stopAudio } from '../services/playaudioService';
 import { API_BASE_URL } from '../config/api';
 import ConversationService from '../services/conversationService';
 import OfflineService from '../services/offlineService';
@@ -236,52 +236,16 @@ function ChatPage({ navigation }) {
     await conversationSettingsManager.setVoice(newVoice);
   };
 
-  // Helper to normalize audio data (array/string → base64)
-  const arrayToBase64 = (bytes) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let result = '';
-    let i = 0;
-    while (i < bytes.length) {
-      const a = bytes[i++];
-      const b = i < bytes.length ? bytes[i++] : 0;
-      const c = i < bytes.length ? bytes[i++] : 0;
-      const bitmap = (a << 16) | (b << 8) | c;
-      result += chars[(bitmap >> 18) & 63] + chars[(bitmap >> 12) & 63];
-      result += i - 2 < bytes.length ? chars[(bitmap >> 6) & 63] : '=';
-      result += i - 1 < bytes.length ? chars[bitmap & 63] : '=';
-    }
-    return result;
-  };
-
-  const normalizeToBase64 = (audioData) => {
-    if (!audioData) throw new Error('No audio data');
-    if (typeof audioData === 'string') return audioData; // already base64
-    if (Array.isArray(audioData)) return arrayToBase64(audioData);
-    if (audioData?.data && Array.isArray(audioData.data)) return arrayToBase64(audioData.data);
-    // last resort
-    const s = JSON.stringify(audioData);
-    const arr = Array.from(new Uint8Array([...s].map((c) => c.charCodeAt(0))));
-    return arrayToBase64(arr);
-  };
-
   // Play audio from backend or fallback to TTS
   const speakTextWithTTS = async (text, audioData = null) => {
     try {
       setIsSpeaking(true);
       
-      // If we have audio from backend, play it directly
-      if (audioData) {
-        console.log('[ChatPage] Playing audio from backend...');
-        const b64 = normalizeToBase64(audioData);
-        await nativeAudioService.playAudio(b64);
-      } else {
-        // Fallback to client-side TTS
-        console.log('[ChatPage] Using client-side TTS...');
-        await speakText(text, selectedVoice, 'gpt-4o-mini-tts');
-      }
+      // Use centralized audio service
+      await playAudioOrTTS(text, audioData, selectedVoice, 'gpt-4o-mini-tts');
     } catch (error) {
-      console.error('[ChatPage] TTS Error:', error);
-      console.log('[ChatPage]TTS not available, continuing without audio');
+      console.error('[ChatPage] Audio/TTS Error:', error);
+      console.log('[ChatPage] Audio/TTS not available, continuing without audio');
       // Don't show error to user, just continue without TTS
     } finally {
       setIsSpeaking(false);
@@ -296,10 +260,10 @@ function ChatPage({ navigation }) {
   // Stop current speech
   const stopSpeaking = async () => {
     try {
-      // Stop native audio service
-      await nativeAudioService.stopAudio();
+      // Stop audio using centralized service
+      await stopAudio();
     } catch (error) {
-      console.log('Error stopping native audio:', error);
+      console.log('Error stopping audio:', error);
     }
     
     if (currentAudioRef.current) {
