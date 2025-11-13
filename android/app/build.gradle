@@ -28,13 +28,29 @@ android {
             keyAlias 'AndroidDebugKey'
             keyPassword 'android'
         }
+        release {
+            // Load keystore properties from file if exists
+            def keystorePropertiesFile = rootProject.file("keystore.properties")
+            def keystoreProperties = new Properties()
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+            }
+            
+            // Use keystore from android-cer folder (relative to project root)
+            // Path: mobile/android/app/build.gradle -> mobile/android-cer/kidspeak.jks
+            def keystorePath = rootProject.file("../android-cer/kidspeak.jks")
+            storeFile keystorePath.exists() ? keystorePath : file(System.properties['user.home'] + "/.android/debug.keystore")
+            storePassword keystoreProperties['storePassword'] ?: System.getenv("KEYSTORE_PASSWORD") ?: ""
+            keyAlias keystoreProperties['keyAlias'] ?: System.getenv("KEY_ALIAS") ?: "kidspeak"
+            keyPassword keystoreProperties['keyPassword'] ?: System.getenv("KEY_PASSWORD") ?: ""
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
