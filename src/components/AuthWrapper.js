@@ -7,7 +7,7 @@ import Login from './Login';
 import Register from './Register';
 import ChatPage from '../pages/ChatPage';
 
-const AuthWrapper = () => {
+const AuthWrapper = ({ route }) => {
   const navigation = useNavigation();
   const { isAuthenticated, isLoading } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
@@ -32,7 +32,13 @@ const AuthWrapper = () => {
   }
 
   // If user is authenticated, show chat page
-  return <ChatPage navigation={navigation} />;
+  return (
+    <ChatPage
+      navigation={navigation}
+      initialConversation={route?.params?.conversation}
+      initialSelectedTopic={route?.params?.topic}
+    />
+  );
 };
 
 const styles = StyleSheet.create({

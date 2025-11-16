@@ -12,17 +12,21 @@ import {
   Alert,
   Share,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import PaywallScreen, { StoreType } from './PaywallScreen';
+import UserInfoScreen from './UserInfoScreen';
+import { markUserInfoCompleted } from '../utils/onboardingStorage';
 
-function AppSettingsPage({ isVisible, onClose }) {
+function AppSettingsPage({ isVisible, onClose, mode = 'modal' }) {
   const insets = useSafeAreaInsets();
   const [showWebView, setShowWebView] = useState(false);
   const [webViewSource, setWebViewSource] = useState(null);
   const [webViewTitle, setWebViewTitle] = useState('');
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showUserInfo, setShowUserInfo] = useState(false);
 
   const handleStorePress = () => {
     setShowPaywall(true);
@@ -163,99 +167,126 @@ function AppSettingsPage({ isVisible, onClose }) {
     setShowWebView(true);
   };
 
-  const SettingItem = ({ icon, title, onPress }) => (
-    <TouchableOpacity style={styles.settingItem} onPress={onPress}>
-      <View style={styles.settingIcon}>
-        <Text style={styles.iconText}>{icon}</Text>
+  const handleUserInfoPress = () => {
+    setShowUserInfo(true);
+  };
+
+  const handleUserInfoSubmit = async (userData) => {
+    await markUserInfoCompleted(userData);
+    setShowUserInfo(false);
+    Alert.alert('Success', 'Your information has been updated!');
+  };
+
+  const SettingItem = ({ iconSource, title, onPress }) => (
+    <TouchableOpacity style={styles.settingItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.settingItemContent}>
+        <View style={styles.settingIconContainer}>
+          <Image source={iconSource} style={styles.iconImage} resizeMode="contain" />
+        </View>
+        <Text style={styles.settingTitle}>{title}</Text>
       </View>
-      <Text style={styles.settingTitle}>{title}</Text>
       <Text style={styles.arrowIcon}>›</Text>
     </TouchableOpacity>
   );
 
-  const SettingGroup = ({ children }) => (
-    <View style={styles.settingGroup}>
-      {children}
+  const SettingSection = ({ title, children }) => (
+    <View style={styles.settingSection}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.settingGroup}>
+        {children}
+      </View>
     </View>
   );
 
-  return (
+  const Header = () => (
+    <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      {mode === 'modal' ? (
+        <TouchableOpacity onPress={onClose} style={styles.backButton}>
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.backButtonPlaceholder} />
+      )}
+      <Text style={styles.headerTitle}>Settings</Text>
+      <View style={styles.headerRightPlaceholder} />
+    </View>
+  );
+
+  const MainContent = () => (
+    <View style={styles.modalContainer}>
+      <StatusBar barStyle="dark-content" />
+      {/* Header */}
+      <Header />
+
+      {/* Content */}
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Account Section */}
+        <SettingSection title="Account">
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_store.png')}
+            title="Store"
+            onPress={handleStorePress}
+          />
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_manage_subscription.png')}
+            title="Manage Subscription"
+            onPress={handleManageSubscriptionPress}
+          />
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_userinfo.png')}
+            title="User Info"
+            onPress={handleUserInfoPress}
+          />
+        </SettingSection>
+
+        {/* Support & Feedback Section */}
+        <SettingSection title="Support & Feedback">
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_review.png')}
+            title="Review App"
+            onPress={handleReviewAppPress}
+          />
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_email.png')}
+            title="Contact us"
+            onPress={handleContactUsPress}
+          />
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_faqs.png')}
+            title="FAQs"
+            onPress={handleFAQsPress}
+          />
+        </SettingSection>
+
+        {/* About Section */}
+        <SettingSection title="About">
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_share.png')}
+            title="Share our app with friend"
+            onPress={handleShareAppPress}
+          />
+          <SettingItem
+            iconSource={require('../assets/images/ic_setting_policy.png')}
+            title="Privacy policy"
+            onPress={handlePrivacyPolicyPress}
+          />
+        </SettingSection>
+      </ScrollView>
+    </View>
+  );
+
+  return mode === 'modal' ? (
     <Modal
       visible={isVisible}
       animationType="slide"
       presentationStyle={Platform.OS === 'ios' ? 'fullScreen' : undefined}
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        <StatusBar barStyle="dark-content" />
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Content */}
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* First Group */}
-          <SettingGroup>
-            <SettingItem
-              icon="🏪"
-              title="Store"
-              onPress={handleStorePress}
-            />
-            <SettingItem
-              icon="👑"
-              title="Manage Subscription"
-              onPress={handleManageSubscriptionPress}
-            />
-          </SettingGroup>
-
-          {/* Second Group */}
-          <SettingGroup>
-            {/* <SettingItem
-              icon="🔲"
-              title="Change App Icon"
-              onPress={handleChangeAppIconPress}
-            /> */}
-            <SettingItem
-              icon="⭐"
-              title="Review App"
-              onPress={handleReviewAppPress}
-            />
-            <SettingItem
-              icon="✉️"
-              title="Contact us"
-              onPress={handleContactUsPress}
-            />
-            <SettingItem
-              icon="❓"
-              title="FAQs"
-              onPress={handleFAQsPress}
-            />
-            <SettingItem
-              icon="📤"
-              title="Share our app with friend"
-              onPress={handleShareAppPress}
-            />
-          {/* </SettingGroup> */}
-
-          {/* Third Group */}
-          {/* <SettingGroup> */}
-            {/* <SettingItem
-              icon="🔳"
-              title="Our other apps"
-              onPress={handleOtherAppsPress}
-            /> */}
-            <SettingItem
-              icon="🛡️"
-              title="Privacy policy"
-              onPress={handlePrivacyPolicyPress}
-            />
-          </SettingGroup>
-        </ScrollView>
-      </View>
+      <MainContent />
 
       {/* WebView Modal */}
       <Modal
@@ -306,96 +337,213 @@ function AppSettingsPage({ isVisible, onClose }) {
           }}
         />
       </Modal>
+
+      {/* UserInfo Modal */}
+      <Modal
+        visible={showUserInfo}
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'fullScreen' : undefined}
+        onRequestClose={() => setShowUserInfo(false)}
+      >
+        <View style={styles.modalContainer}>
+          <StatusBar barStyle="dark-content" />
+          <View style={[styles.userInfoHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity 
+              onPress={() => setShowUserInfo(false)} 
+              style={styles.userInfoCloseButton}
+            >
+              <Text style={styles.backIcon}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.userInfoTitle}>User Info</Text>
+            <View style={styles.headerRightPlaceholder} />
+          </View>
+          <UserInfoScreen onUserInfoSubmit={handleUserInfoSubmit} />
+        </View>
+      </Modal>
     </Modal>
+  ) : (
+    <>
+      <MainContent />
+      {/* WebView Modal */}
+      <Modal
+        visible={showWebView}
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'fullScreen' : undefined}
+        onRequestClose={() => setShowWebView(false)}
+      >
+        <View style={styles.modalContainer}>
+          <StatusBar barStyle="dark-content" />
+          <View style={[styles.webViewHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity 
+              onPress={() => setShowWebView(false)} 
+              style={styles.webViewCloseButton}
+            >
+              <Text style={styles.webViewCloseButtonText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.webViewTitle}>{webViewTitle}</Text>
+            <View style={styles.webViewPlaceholder} />
+          </View>
+          <WebView
+            source={webViewSource}
+            style={styles.webView}
+            startInLoadingState={true}
+            scalesPageToFit={true}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.warn('WebView error: ', nativeEvent);
+              Alert.alert('Error', 'Failed to load the page');
+            }}
+          />
+        </View>
+      </Modal>
+      {/* Paywall Modal */}
+      <Modal
+        visible={showPaywall}
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'fullScreen' : undefined}
+        onRequestClose={() => setShowPaywall(false)}
+      >
+        <PaywallScreen
+          storeType={StoreType.STORE}
+          onClose={() => setShowPaywall(false)}
+          onSubscribe={(planId) => {
+            console.log('Subscribed to:', planId);
+            setShowPaywall(false);
+          }}
+        />
+      </Modal>
+      {/* UserInfo Modal */}
+      <Modal
+        visible={showUserInfo}
+        animationType="slide"
+        presentationStyle={Platform.OS === 'ios' ? 'fullScreen' : undefined}
+        onRequestClose={() => setShowUserInfo(false)}
+      >
+        <View style={styles.modalContainer}>
+          <StatusBar barStyle="dark-content" />
+          <View style={[styles.userInfoHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity 
+              onPress={() => setShowUserInfo(false)} 
+              style={styles.userInfoCloseButton}
+            >
+              <Text style={styles.backIcon}>←</Text>
+            </TouchableOpacity>
+            <Text style={styles.userInfoTitle}>User Info</Text>
+            <View style={styles.headerRightPlaceholder} />
+          </View>
+          <UserInfoScreen onUserInfoSubmit={handleUserInfoSubmit} />
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FCFCFC',
   },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FCFCFC',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: '#FCFCFC',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#E5E7EB',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  backButton: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  backButtonPlaceholder: {
+    width: 48,
+  },
+  backIcon: {
+    fontSize: 24,
     color: '#333333',
   },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
+  headerTitle: {
     fontSize: 18,
-    color: '#666666',
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#333333',
+    flex: 1,
+    textAlign: 'center',
+  },
+  headerRightPlaceholder: {
+    width: 48,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 24,
+  },
+  settingSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
   settingGroup: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 0,
+    overflow: 'hidden',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 12,
+    minHeight: 56,
   },
-  settingIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#007AFF',
+  settingItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#F0F3F4',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
   },
   iconText: {
-    fontSize: 16,
-    color: '#ffffff',
+    fontSize: 20,
+    color: '#4CB2E6',
+  },
+  iconImage: {
+    width: 24,
+    height: 24,
+    tintColor: '#4CB2E6',
   },
   settingTitle: {
-    flex: 1,
     fontSize: 16,
     color: '#333333',
-    fontWeight: '500',
+    fontWeight: '400',
+    flex: 1,
   },
   arrowIcon: {
-    fontSize: 18,
-    color: '#cccccc',
-    fontWeight: 'bold',
+    fontSize: 20,
+    color: '#999999',
+    fontWeight: '300',
   },
   webViewContainer: {
     flex: 1,
@@ -436,6 +584,29 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
+  },
+  userInfoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: '#FCFCFC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  userInfoCloseButton: {
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  userInfoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333333',
+    flex: 1,
+    textAlign: 'center',
   },
 });
 

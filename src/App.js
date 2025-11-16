@@ -11,35 +11,29 @@ import UserInfoScreen from './components/UserInfoScreen';
 import PaywallScreen from './components/PaywallScreen';
 import {hasCompletedOnboarding, markOnboardingCompleted, hasCompletedUserInfo, markUserInfoCompleted} from './utils/onboardingStorage';
 import AppStartupOverlay from './components/AppStartupOverlay';
+import HomeScreen from './components/HomeScreen';
+import MainTabbarScreen from './components/MainTabbarScreen';
+import ConversationHistory from './pages/ConversationHistory';
+import FriendList from './pages/FriendList';
+import NewTopicSelection from './pages/NewTopicSelection';
 
 const Stack = createStackNavigator();
 
 function App() {
-  const [appState, setAppState] = useState('loading'); // 'loading', 'onboarding', 'userinfo', 'main'
+  const [appState, setAppState] = useState(null); // null (loading), 'onboarding', 'userinfo', 'main'
 
   useEffect(() => {
-    console.log('✅ App.js mounted - Initial state:', appState);
-    
-    // SPLASH SCREEN SKIPPED - Initialize app immediately
-    const initializeApp = async () => {
-      console.log('🎬 App initializing (SplashScreen skipped) - Checking app status...');
-      
+    console.log('✅ App.js mounted - Checking app status...');
+    // Check onboarding and userinfo status on mount
+    const checkAppStatus = async () => {
       try {
-        // Check app status
         const hasCompletedOnboardingFlag = await hasCompletedOnboarding();
         const hasCompletedUserInfoFlag = await hasCompletedUserInfo();
-        
-        console.log('📊 Onboarding completed:', hasCompletedOnboardingFlag);
-        console.log('📊 UserInfo completed:', hasCompletedUserInfoFlag);
-        
         if (hasCompletedOnboardingFlag && hasCompletedUserInfoFlag) {
-          console.log('➡️  Going to MAIN app');
           setAppState('main');
         } else if (hasCompletedOnboardingFlag && !hasCompletedUserInfoFlag) {
-          console.log('➡️  Going to USER INFO');
           setAppState('userinfo');
         } else {
-          console.log('➡️  Going to ONBOARDING');
           setAppState('onboarding');
         }
       } catch (error) {
@@ -47,12 +41,13 @@ function App() {
         setAppState('onboarding');
       }
     };
-    
-    initializeApp();
+    checkAppStatus();
   }, []);
 
   useEffect(() => {
-    console.log('🔄 App state changed to:', appState);
+    if (appState !== null) {
+      console.log('🔄 App state changed to:', appState);
+    }
   }, [appState]);
 
   const handleOnboardingFinish = async () => {
@@ -70,13 +65,14 @@ function App() {
   };
 
   const renderAppContent = () => {
+    // Show nothing while checking app status (native splash will be visible)
+    if (appState === null) {
+      return null;
+    }
+    
     console.log('🎨 Rendering app content for state:', appState);
     
     switch (appState) {
-      case 'loading':
-        console.log('⏳ Loading (SplashScreen skipped)');
-        return null; // Very brief while we determine initial screen
-        // return <SplashScreen onFinish={() => setAppState('onboarding')} />;
       case 'onboarding':
         console.log('👋 Rendering OnboardingScreen');
         return <OnboardingScreen onFinish={handleOnboardingFinish} />;
@@ -91,6 +87,10 @@ function App() {
               screenOptions={{
                 headerShown: false,
               }}>
+              <Stack.Screen name="Home" component={MainTabbarScreen} />
+              <Stack.Screen name="ConversationHistory" component={ConversationHistory} />
+              <Stack.Screen name="FriendList" component={FriendList} />
+              <Stack.Screen name="NewTopicSelection" component={NewTopicSelection} />
               <Stack.Screen name="AuthWrapper" component={AuthWrapper} />
               <Stack.Screen name="APITest" component={APITest} />
               <Stack.Screen
@@ -112,8 +112,9 @@ function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <AppStartupOverlay visible={appState === 'loading'} />
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        {/* Overlay not needed for splash-driven flow */}
+        <AppStartupOverlay visible={false} />
         {renderAppContent()}
       </AuthProvider>
     </SafeAreaProvider>

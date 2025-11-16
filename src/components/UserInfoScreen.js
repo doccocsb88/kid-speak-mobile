@@ -1,5 +1,5 @@
 // src/components/UserInfoScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { markUserInfoCompleted, getUserData } from '../utils/onboardingStorage';
 
 function UserInfoScreen({ onUserInfoSubmit }) {
   const [formData, setFormData] = useState({
@@ -17,6 +18,29 @@ function UserInfoScreen({ onUserInfoSubmit }) {
     gender: ''
   });
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load saved user data on mount
+  useEffect(() => {
+    const loadSavedUserData = async () => {
+      try {
+        const savedData = await getUserData();
+        if (savedData) {
+          setFormData({
+            name: savedData.name || '',
+            age: savedData.age ? String(savedData.age) : '',
+            gender: savedData.gender || ''
+          });
+        }
+      } catch (error) {
+        console.log('Error loading saved user data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSavedUserData();
+  }, []);
 
   const handleInputChange = (name, value) => {
     setFormData(prev => ({
@@ -58,13 +82,25 @@ function UserInfoScreen({ onUserInfoSubmit }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (validateForm()) {
-      onUserInfoSubmit({
+      const userData = {
         name: formData.name.trim(),
         age: parseInt(formData.age),
         gender: formData.gender
-      });
+      };
+
+      // Save user data to local storage
+      try {
+        await markUserInfoCompleted(userData);
+        console.log('✅ User info saved to local storage:', userData);
+      } catch (error) {
+        console.error('❌ Error saving user info to local storage:', error);
+        // Still proceed with the callback even if storage fails
+      }
+
+      // Call the callback to proceed with app flow
+      onUserInfoSubmit(userData);
     }
   };
 

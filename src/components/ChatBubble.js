@@ -9,7 +9,7 @@ function ChatBubble({ sender, message, onSpeak, isSpeaking }) {
   return (
     <View style={[styles.chatBubbleWrapper, isUser ? styles.userWrapper : styles.aiWrapper]}>
       {/* Profile Picture */}
-      <View style={styles.profileContainer}>
+      <View style={[styles.profileContainer, isUser && styles.userProfileContainer]}>
         <View style={[styles.profilePicture, isUser ? styles.userProfile : styles.aiProfile]}>
           <Text style={styles.profileEmoji}>
             {isUser ? '👦' : '🤖'}
@@ -41,60 +41,66 @@ function ChatBubble({ sender, message, onSpeak, isSpeaking }) {
 const styles = StyleSheet.create({
   chatBubbleWrapper: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginVertical: 8,
-    paddingLeft: 0,
-    paddingRight: 16,
+    alignItems: 'flex-end',
+    marginBottom: 16,
   },
   userWrapper: {
     flexDirection: 'row-reverse',
+    justifyContent: 'flex-end',
+  },
+  userProfileContainer: {
+    marginRight: 0,
+    marginLeft: 10,
   },
   aiWrapper: {
     flexDirection: 'row',
+    justifyContent: 'flex-start',
   },
   profileContainer: {
-    marginHorizontal: 8,
+    width: 32,
+    height: 32,
+    marginBottom: 2,
+    marginRight: 10,
   },
   profilePicture: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    overflow: 'hidden',
   },
   userProfile: {
-    backgroundColor: '#ff6b6b',
-    borderColor: '#ff5252',
+    backgroundColor: 'transparent',
   },
   aiProfile: {
-    backgroundColor: '#4ecdc4',
-    borderColor: '#26a69a',
+    backgroundColor: 'transparent',
   },
   profileEmoji: {
     fontSize: 20,
   },
   chatBubble: {
-    maxWidth: '88%',
-    padding: 12,
-    borderRadius: 16,
+    maxWidth: '80%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
     flexDirection: 'row',
     alignItems: 'flex-end',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   userBubble: {
-    backgroundColor: '#87CEEB',
+    backgroundColor: '#4A90E2',
     borderBottomRightRadius: 4,
   },
   aiBubble: {
-    backgroundColor: '#98FB98',
+    backgroundColor: '#FFFFFF',
     borderBottomLeftRadius: 4,
   },
   messageText: {
@@ -103,19 +109,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userText: {
-    color: '#333333',
+    color: '#FFFFFF',
   },
   aiText: {
-    color: '#333333',
+    color: '#4A4A4A',
   },
   speakButton: {
     marginLeft: 8,
     padding: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    minWidth: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   speakingButton: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    backgroundColor: 'rgba(74, 144, 226, 0.2)',
   },
   speakButtonText: {
     fontSize: 16,

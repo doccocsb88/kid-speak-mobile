@@ -151,7 +151,7 @@ const OnboardingScreen = ({onFinish}) => {
 
   return (
     <Animated.View style={[styles.container, {opacity: fadeAnim}]}>
-      <StatusBar hidden={true} />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       
       <ScrollView
         ref={scrollViewRef}

@@ -1,5 +1,8 @@
 require_relative '../node_modules/react-native/scripts/react_native_pods'
 
+# Enable New Architecture
+ENV['RCT_NEW_ARCH_ENABLED'] = '1'
+
 platform :ios, '15.1'
 install! 'cocoapods', :deterministic_uuids => false
 
@@ -33,6 +36,9 @@ target 'KidSpeak' do
       :mac_catalyst_enabled => false
     )
 
+    # Note: Header search path for React Native AppDelegate headers needs to be added manually in Xcode:
+    # Build Settings > Header Search Paths > Add: $(SRCROOT)/../node_modules/react-native/Libraries/AppDelegate
+    
     # Ensure Release builds are stripped and post-processed to avoid
     # large embedded frameworks inflating the final .app size.
     installer.pods_project.targets.each do |target|

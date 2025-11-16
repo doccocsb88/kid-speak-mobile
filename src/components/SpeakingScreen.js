@@ -5,20 +5,17 @@
 // - Bind Voice listeners once ([], use refs inside)
 // - Arm 2s timer on results AND onSpeechEnd (if transcript exists)
 
-// Feature flag to enable/disable auto-prompt feature
-const ENABLE_AUTOPROMPT = false;
-
 import React, { useEffect, useReducer, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   TouchableOpacity,
   Animated,
   Platform,
   PermissionsAndroid,
   Alert,
+  Image,
 } from 'react-native';
 import Voice from '@react-native-voice/voice';
 import axios from 'axios';
@@ -31,7 +28,7 @@ import conversationSettingsManager from '../services/conversationSettingsManager
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import userManager from '../services/UserManager';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ====== State Machine ======
 const STATES = {
@@ -160,6 +157,9 @@ export default function SpeakingScreen({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const userBubbleAnim = useRef(new Animated.Value(0)).current;
   const aiBubbleAnim = useRef(new Animated.Value(0)).current;
+  const audioBarsAnim = useRef(
+    Array.from({ length: 16 }, () => new Animated.Value(0.1))
+  ).current;
 
   const [S, dispatch] = useReducer(reducer, initial);
 
@@ -205,6 +205,38 @@ export default function SpeakingScreen({
   };
   const showAiBubble = () => {
     Animated.timing(aiBubbleAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+  };
+
+  // === Audio visualization animation ===
+  const startAudioVisualization = () => {
+    const animations = audioBarsAnim.map((anim, index) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: Math.random() * 0.9 + 0.1,
+            duration: 200 + Math.random() * 300,
+            useNativeDriver: false,
+          }),
+          Animated.timing(anim, {
+            toValue: Math.random() * 0.9 + 0.1,
+            duration: 200 + Math.random() * 300,
+            useNativeDriver: false,
+          }),
+        ])
+      );
+    });
+    Animated.parallel(animations).start();
+  };
+
+  const stopAudioVisualization = () => {
+    audioBarsAnim.forEach(anim => {
+      anim.stopAnimation();
+      Animated.timing(anim, {
+        toValue: 0.1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    });
   };
 
   // === Silence timer helpers ===
@@ -274,6 +306,7 @@ export default function SpeakingScreen({
       // Update state to LISTENING (may already be set, but ensure it's correct)
       dispatch({ type: 'START_LISTEN' });
       startPulse();
+      startAudioVisualization();
       showUserBubble();
     };
 
@@ -320,10 +353,11 @@ export default function SpeakingScreen({
       // console.log('[Voice] Volume:', e?.value);
     };
 
-    return () => {
+      return () => {
       console.log('[Voice] Cleanup: Destroying Voice instance...');
       clearSilenceTimer();
       stopPulse();
+      stopAudioVisualization();
       // Complete cleanup sequence
       Voice.cancel()
         .then(() => Voice.stop())
@@ -511,6 +545,7 @@ export default function SpeakingScreen({
         // onSpeechStart listener will also dispatch START_LISTEN when triggered
         dispatch({ type: 'START_LISTEN' });
         startPulse();
+        startAudioVisualization();
         console.log('[Voice] Listening started successfully, state set to LISTENING');
         
         // On Android, onSpeechStart might be delayed, so we set state immediately
@@ -527,6 +562,7 @@ export default function SpeakingScreen({
       dispatch({ type: 'STOP_LISTEN' });
       dispatch({ type: 'ERROR', error: e });
       stopPulse();
+      stopAudioVisualization();
       
       // Show user-friendly error message with rebuild instructions
       if (Platform.OS === 'android') {
@@ -556,6 +592,7 @@ export default function SpeakingScreen({
       dispatch({ type: 'ERROR', error: e });
     } finally {
       stopPulse();
+      stopAudioVisualization();
     }
   };
 
@@ -710,8 +747,10 @@ export default function SpeakingScreen({
       await playAudioFromData(audioData);
       
       console.log('[Audio] Audio playback completed');
+      stopAudioVisualization();
     } catch (err) {
       console.warn('[Audio] playback error', err);
+      stopAudioVisualization();
       // Don't throw - continue to restart voice even if audio fails
     }
     
@@ -750,8 +789,10 @@ export default function SpeakingScreen({
       await playTTS(text, selectedVoice, 'gpt-4o-mini-tts');
       
       console.log('[TTS] TTS playback completed');
+      stopAudioVisualization();
     } catch (err) {
       console.warn('[TTS] speak error', err);
+      stopAudioVisualization();
     }
     
     // Only after TTS completes, restart voice and return to listening
@@ -802,132 +843,228 @@ export default function SpeakingScreen({
   //   else await startListening();
   // };
 
-  return (
-    <ImageBackground source={require('../assets/images/speak_bg.png')} style={styles.container} resizeMode="cover">
-      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : Math.max(insets.top, 20) }]}>
-        <TouchableOpacity
-          style={[styles.backButton, isBusy && styles.disabledButton]}
-          disabled={isBusy}
-          onPress={async () => {
-            if (!isBusy) {
-              try {
-                console.log('[Navigation] Back button pressed, cleaning up Voice...');
-                clearSilenceTimer();
-                stopPulse();
-                // Complete cleanup before navigation
-                await Voice.cancel();
-                await Voice.stop();
-                await Voice.destroy();
-                Voice.removeAllListeners();
-                console.log('[Navigation] Voice cleanup complete, navigating back...');
-              } catch (err) {
-                console.warn('[Navigation] Cleanup error:', err);
-              } finally {
-                // Navigate back even if cleanup fails
-                onBack && onBack(conversationMessages);
-              }
-            }
-            
-          }}
-        >
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
+  // Get last messages for display
+  const lastUserMessage = conversationMessages.filter(m => m.sender === 'user').slice(-1)[0];
+  const lastAiMessage = conversationMessages.filter(m => m.sender === 'ai').slice(-1)[0];
+  const displayUserText = premiumRequired
+    ? 'Daily limit reached. Tap to upgrade.'
+    : (S.transcript || lastUserMessage?.text || (isListening ? 'Listening...' : ''));
+  const displayAiText = S.aiText || lastAiMessage?.text || 'Ready to chat!';
 
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>
-            <Text style={styles.kidText}>SpeakFun</Text>
-            <Text style={styles.speakText}> AI</Text>
+  // Get user initial for avatar
+  const userInitial = userInfo?.name?.[0]?.toUpperCase() || 'U';
+
+  // Determine dynamic header title based on topic or friend
+  const getHeaderTitle = () => {
+    if (!selectedTopic) {
+      return 'Speak with Sparky';
+    }
+
+    // Check if it's a friend (id starts with 'friend_')
+    const isFriend = selectedTopic.id && String(selectedTopic.id).startsWith('friend_');
+    
+    if (isFriend) {
+      // Extract friend name from title (format: "Chat with [Name]")
+      const title = selectedTopic.title || '';
+      const friendNameMatch = title.match(/Chat with (.+)/);
+      if (friendNameMatch && friendNameMatch[1]) {
+        return `Speak with ${friendNameMatch[1]}`;
+      }
+      // Fallback: use title as-is if format doesn't match
+      return title || 'Speak with Sparky';
+    }
+
+    // Regular topic - show topic title
+    if (selectedTopic.title) {
+      return selectedTopic.title;
+    }
+
+    // Default fallback
+    return 'Speak with Sparky';
+  };
+
+  const headerTitle = getHeaderTitle();
+
+  const HeaderContent = (
+    <View style={[styles.header, Platform.OS === 'android' && { paddingTop: Math.max(insets.top, 16) }]}>
+      <TouchableOpacity
+        style={[styles.backButton, isBusy && styles.disabledButton]}
+        disabled={isBusy}
+        onPress={async () => {
+          if (!isBusy) {
+            try {
+              console.log('[Navigation] Back button pressed, cleaning up Voice...');
+              clearSilenceTimer();
+              stopPulse();
+              stopAudioVisualization();
+              // Complete cleanup before navigation
+              await Voice.cancel();
+              await Voice.stop();
+              await Voice.destroy();
+              Voice.removeAllListeners();
+              console.log('[Navigation] Voice cleanup complete, navigating back...');
+            } catch (err) {
+              console.warn('[Navigation] Cleanup error:', err);
+            } finally {
+              // Navigate back even if cleanup fails
+              onBack && onBack(conversationMessages);
+            }
+          }
+        }}
+      >
+        <Text style={styles.backButtonIcon}>←</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.headerTitle}>{headerTitle}</Text>
+      <View style={styles.headerRightSpacer} />
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      {Platform.OS === 'ios' ? (
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          {HeaderContent}
+        </SafeAreaView>
+      ) : (
+        HeaderContent
+      )}
+
+      {/* Main Content */}
+      <View style={styles.mainContent}>
+        {/* Top Section: Avatar and Status */}
+        <View style={styles.topSection}>
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDrOfEQkVdMdCENiYkYSl6j7jlSnrsh6RbTYKRyWoz5pwriWvPucsmG364GhfVEcIlmQPqiBFRli6Nj9fzWYlCp0rVrqqwlZRSg_NIAq2OrHU3ls8YMWrsRNLyxAVNANN1K6p5T3fudlUkakL8BjCC-XmKz8HoX3VarkM6nOHwbw2EDzQ3YGnW4SVCfMPUkfFm7SdxDFA83eDWUBgq4jK2BTB8fkR9AnGu51_wIFCZIBXR2uzILHuSERag-UqvcybDlFP_O1En_zQ' }}
+              style={styles.avatar}
+              defaultSource={require('../assets/images/ic_audio.png')}
+            />
+          </View>
+          <Text style={styles.listeningStatus}>
+            {isPlaying ? 'Playing...' : isRequesting ? 'Processing...' : isListening ? "I'm listening..." : 'Ready to speak'}
           </Text>
-          {S.offline && (
-            <View style={styles.offlineIndicator}>
-              <Text style={styles.offlineText}>📴 Working Offline</Text>
-            </View>
-          )}
         </View>
 
-        <View style={styles.headerRightContainer}>
-          {isRequesting && (
-            <View style={styles.loadingIndicator}>
-              <View style={styles.loadingCircle}>
-                <Text style={styles.loadingText}>⏳</Text>
+        {/* Chat Bubbles Section */}
+        <View style={styles.chatSection}>
+          {/* AI Message (Left) */}
+          {displayAiText && displayAiText !== 'Ready to chat!' && (
+            <Animated.View
+              style={[
+                styles.chatBubbleContainer,
+                styles.aiBubbleContainer,
+                {
+                  opacity: aiBubbleAnim,
+                  transform: [
+                    { scale: aiBubbleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
+                  ],
+                },
+              ]}
+            >
+              <Image
+                source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDrOfEQkVdMdCENiYkYSl6j7jlSnrsh6RbTYKRyWoz5pwriWvPucsmG364GhfVEcIlmQPqiBFRli6Nj9fzWYlCp0rVrqqwlZRSg_NIAq2OrHU3ls8YMWrsRNLyxAVNANN1K6p5T3fudlUkakL8BjCC-XmKz8HoX3VarkM6nOHwbw2EDzQ3YGnW4SVCfMPUkfFm7SdxDFA83eDWUBgq4jK2BTB8fkR9AnGu51_wIFCZIBXR2uzILHuSERag-UqvcybDlFP_O1En_zQ' }}
+                style={styles.chatAvatar}
+                defaultSource={require('../assets/images/ic_audio.png')}
+              />
+              <View style={styles.aiBubble}>
+                <Text style={styles.aiBubbleText}>{displayAiText}</Text>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* User Message (Right) */}
+          {displayUserText && (
+            <View style={[styles.chatBubbleContainer, styles.userBubbleContainer]}>
+              <TouchableOpacity
+                activeOpacity={premiumRequired ? 0.7 : 1}
+                onPress={() => { if (premiumRequired) openPaywall(); }}
+                style={{ flex: 1 }}
+              >
+                <Animated.View
+                  style={[
+                    styles.userBubble,
+                    {
+                      opacity: userBubbleAnim,
+                      transform: [
+                        { scale: userBubbleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
+                      ],
+                    },
+                  ]}
+                >
+                  <Text style={styles.userBubbleText}>{displayUserText}</Text>
+                </Animated.View>
+              </TouchableOpacity>
+              <View style={styles.userAvatar}>
+                <Text style={styles.userAvatarText}>{userInitial}</Text>
               </View>
             </View>
           )}
-          <TouchableOpacity 
-            style={[styles.settingsIcon, isBusy && styles.disabledButton]}
-            disabled={isBusy}
+        </View>
+
+        {/* Audio Visualization and Mic Button */}
+        <View style={styles.bottomSection}>
+          {/* Audio Visualization */}
+          {isListening && (
+            <View style={styles.audioVisualization}>
+              {audioBarsAnim.map((anim, index) => {
+                const colors = ['#34D399', '#FFD159', '#58A4FF'];
+                const color = colors[index % colors.length];
+                const heights = [8, 20, 32, 12, 40, 48, 60, 72, 80, 56, 44, 64, 52, 36, 16, 28];
+                const baseHeight = heights[index] || 20;
+                return (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.audioBar,
+                      {
+                        backgroundColor: color,
+                        height: anim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [baseHeight * 0.1, baseHeight],
+                        }),
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          )}
+
+          {/* Microphone Button */}
+          <TouchableOpacity
+            style={[styles.micButton, isListening && styles.micButtonListening]}
+            disabled={micDisabled}
             onPress={() => {
-              if (isBusy) return;
-              setShowSettings(true);
+              if (micDisabled) return;
+              if (isListening) stopListening();
+              else startListening();
             }}
           >
-            <Text style={styles.settingsEmoji}>⚙️</Text>
+            <Animated.View
+              style={[
+                styles.micButtonInner,
+                { transform: [{ scale: pulseAnim }] },
+              ]}
+            >
+              <Text style={styles.micIcon}>🎤</Text>
+            </Animated.View>
+            {isListening && (
+              <Animated.View
+                style={[
+                  styles.micButtonPulse,
+                  {
+                    opacity: pulseAnim.interpolate({
+                      inputRange: [1, 1.2],
+                      outputRange: [0.5, 0],
+                    }),
+                  },
+                ]}
+              />
+            )}
           </TouchableOpacity>
         </View>
-      </View>
-
-      <View style={styles.mainContent}>
-        {/* User bubble */}
-        <TouchableOpacity
-          activeOpacity={premiumRequired ? 0.7 : 1}
-          onPress={() => { if (premiumRequired) openPaywall(); }}
-        >
-          <Animated.View
-            style={[
-              styles.userSpeechBubble,
-              {
-                opacity: userBubbleAnim,
-                transform: [
-                  { scale: userBubbleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
-                ],
-              },
-            ]}
-          >
-            <Text style={styles.speechBubbleLabel}>You said:</Text>
-            <Text style={styles.speechBubbleText}>
-              {premiumRequired
-                ? 'Daily limit reached. Tap to upgrade to Premium and continue.'
-                : (S.transcript || S.lastUserInput || (isListening ? 'Listening...' : ''))}
-            </Text>
-          </Animated.View>
-        </TouchableOpacity>
-
-        {/* Center mic */}
-        <View style={styles.centerArea}>
-          <View style={styles.microphoneButtonContainer}>
-            <View
-              style={[styles.microphoneButton, isListening && styles.listeningButton, micDisabled && styles.disabledButton]}
-            >
-              <Animated.Text style={[styles.microphoneButtonText, { transform: [{ scale: pulseAnim }] }]}>
-                {isPlaying ? '🔇' : isRequesting ? '⏳' : isListening ? '🔴' : '🎤'}
-              </Animated.Text>
-            </View>
-            <Text style={styles.microphoneStatusText}>
-              {isPlaying ? 'Playing audio…' : isRequesting ? 'Processing…' : isListening ? 'Listening…' : 'Tap to speak'}
-            </Text>
-          </View>
-        </View>
-
-        {/* AI bubble */}
-        <Animated.View
-          style={[
-            styles.aiSpeechBubble,
-            {
-              opacity: aiBubbleAnim,
-              transform: [
-                { scale: aiBubbleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) },
-              ],
-            },
-          ]}
-        >
-          <View style={styles.aiResponseHeader}>
-            <View style={styles.miniRobotAvatar}>
-              <Text style={styles.miniAvatarEmoji}>🤖</Text>
-            </View>
-            <Text style={styles.speechBubbleLabel}>App responds:</Text>
-          </View>
-          <Text style={styles.speechBubbleText}>{S.aiText || 'Ready to chat!'}</Text>
-        </Animated.View>
       </View>
 
       {/* Conversation Settings Modal */}
@@ -941,40 +1078,204 @@ export default function SpeakingScreen({
         onVoiceChange={handleVoiceChange}
         availableVoices={conversationSettingsManager.getAvailableVoices()}
       />
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  mainContent: { flex: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
-  centerArea: { flex: 1, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 10 },
-  backButton: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
-  backButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  logoContainer: { flex: 1, alignItems: 'center' },
-  logoText: { fontSize: 24, fontWeight: 'bold', textShadowColor: '#ffffff', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 4 },
-  kidText: { color: '#ff6b9d' },
-  speakText: { color: '#ff9f43' },
-  settingsIcon: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: 20 },
-  settingsEmoji: { fontSize: 16 },
-  userSpeechBubble: { backgroundColor: '#87CEEB', borderRadius: 20, padding: 16, marginVertical: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3, alignSelf: 'stretch' },
-  speechBubbleLabel: { fontSize: 14, fontWeight: '600', color: '#2c3e50', marginBottom: 4 },
-  speechBubbleText: { fontSize: 16, color: '#2c3e50', lineHeight: 22 },
-  aiSpeechBubble: { backgroundColor: '#98FB98', borderRadius: 20, padding: 16, marginVertical: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3, alignSelf: 'stretch' },
-  aiResponseHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  miniRobotAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#4ecdc4', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
-  miniAvatarEmoji: { fontSize: 12 },
-  microphoneButtonContainer: { position: 'absolute', top: '50%', left: '50%', marginTop: -40, marginLeft: -40, zIndex: 10 },
-  microphoneButton: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#007AFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 12, elevation: 12, borderWidth: 4, borderColor: '#ffffff' },
-  listeningButton: { backgroundColor: '#ff4444' },
-  disabledButton: { backgroundColor: 'rgba(255,255,255,0.1)' },
-  microphoneButtonText: { fontSize: 28, color: '#ffffff' },
-  microphoneStatusText: { fontSize: 12, color: '#ffffff', textAlign: 'center', marginTop: 8, fontWeight: '600', textShadowColor: '#000', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
-  offlineIndicator: { backgroundColor: 'rgba(255, 193, 7, 0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginTop: 4 },
-  offlineText: { fontSize: 12, color: '#f57c00', fontWeight: '600', textAlign: 'center' },
-  headerRightContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  loadingIndicator: { backgroundColor: 'rgba(255,255,255,0.2)', padding: 8, borderRadius: 20 },
-  loadingCircle: { width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { fontSize: 16, color: '#ffffff' },
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F9FA',
+  },
+  safeArea: {
+    backgroundColor: 'transparent',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    paddingTop: 12,
+    backgroundColor: 'transparent',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonIcon: {
+    fontSize: 24,
+    color: '#4A4A4A',
+    fontWeight: 'bold',
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1E3A8A',
+    textAlign: 'center',
+    paddingRight: 48,
+  },
+  headerRightSpacer: {
+    width: 48,
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  topSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  avatarContainer: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    overflow: 'hidden',
+    backgroundColor: '#E0F2FE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+  },
+  listeningStatus: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1E3A8A',
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  chatSection: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    gap: 16,
+    marginBottom: 24,
+  },
+  chatBubbleContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  aiBubbleContainer: {
+    alignSelf: 'flex-start',
+  },
+  userBubbleContainer: {
+    alignSelf: 'flex-end',
+  },
+  chatAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  aiBubble: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderTopLeftRadius: 0,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    maxWidth: '80%',
+  },
+  aiBubbleText: {
+    fontSize: 16,
+    color: '#1E3A8A',
+    lineHeight: 22,
+  },
+  userBubble: {
+    backgroundColor: '#58A4FF',
+    borderRadius: 12,
+    borderTopRightRadius: 0,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    maxWidth: '80%',
+  },
+  userBubbleText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    lineHeight: 22,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFD159',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userAvatarText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  bottomSection: {
+    alignItems: 'center',
+    gap: 24,
+  },
+  audioVisualization: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    height: 80,
+    width: '100%',
+  },
+  audioBar: {
+    width: 6,
+    borderRadius: 3,
+    minHeight: 8,
+  },
+  micButton: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#58A4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#58A4FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+    position: 'relative',
+  },
+  micButtonListening: {
+    backgroundColor: '#58A4FF',
+  },
+  micButtonInner: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  micButtonPulse: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 4,
+    borderColor: '#58A4FF',
+  },
+  micIcon: {
+    fontSize: 48,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
 });
