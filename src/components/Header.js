@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FRIENDS } from '../pages/FriendList';
 
-function Header({ onBackPress, onSettingsPress, hideSettingsButton = false, selectedTopic = null }) {
+function Header({ onBackPress, onSettingsPress, hideSettingsButton = false, selectedTopic = null, onAvatarPress = null }) {
   const insets = useSafeAreaInsets();
   
   // Get character name and avatar from selected topic
@@ -51,9 +51,19 @@ function Header({ onBackPress, onSettingsPress, hideSettingsButton = false, sele
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
         )}
-        <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>{characterInfo.avatar}</Text>
-        </View>
+        {onAvatarPress ? (
+          <TouchableOpacity 
+            style={styles.avatarContainer}
+            onPress={onAvatarPress}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.avatarText}>{characterInfo.avatar}</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatarText}>{characterInfo.avatar}</Text>
+          </View>
+        )}
         <Text style={styles.characterName} numberOfLines={1}>
           {characterInfo.name}
         </Text>

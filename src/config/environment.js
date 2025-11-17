@@ -6,8 +6,8 @@ const getApiUrl = () => {
   if (isDev) {
     // Development URLs - Use your computer's IP address for real device testing
     // Replace 192.168.2.73 with your actual IP address
-    // return 'http://172.16.2.124:5000/api';
-    return 'http://192.168.2.73:5000/api';
+    return 'http://172.16.2.124:5000/api';
+    // return 'http://192.168.2.73:5000/api';
   } else {
     // Production URL - Update this with your actual production backend URL
     return 'https://kid-speak-backend.vercel.app/api';

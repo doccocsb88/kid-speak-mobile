@@ -134,7 +134,7 @@ function NewTopicSelection({ navigation }) {
   };
 
   const handleSelectTopic = (topic) => {
-    navigation.navigate('AuthWrapper', { topic });
+    navigation.navigate('TopicDetails', { topic });
   };
 
   const headerContent = (

@@ -15,7 +15,9 @@ import HomeScreen from './components/HomeScreen';
 import MainTabbarScreen from './components/MainTabbarScreen';
 import ConversationHistory from './pages/ConversationHistory';
 import FriendList from './pages/FriendList';
+import FriendDetail from './pages/FriendDetail';
 import NewTopicSelection from './pages/NewTopicSelection';
+import TopicDetails from './pages/TopicDetails';
 
 const Stack = createStackNavigator();
 
@@ -90,7 +92,9 @@ function App() {
               <Stack.Screen name="Home" component={MainTabbarScreen} />
               <Stack.Screen name="ConversationHistory" component={ConversationHistory} />
               <Stack.Screen name="FriendList" component={FriendList} />
+              <Stack.Screen name="FriendDetail" component={FriendDetail} />
               <Stack.Screen name="NewTopicSelection" component={NewTopicSelection} />
+              <Stack.Screen name="TopicDetails" component={TopicDetails} />
               <Stack.Screen name="AuthWrapper" component={AuthWrapper} />
               <Stack.Screen name="APITest" component={APITest} />
               <Stack.Screen

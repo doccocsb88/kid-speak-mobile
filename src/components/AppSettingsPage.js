@@ -14,7 +14,7 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import PaywallScreen, { StoreType } from './PaywallScreen';
 import UserInfoScreen from './UserInfoScreen';
@@ -127,7 +127,11 @@ function AppSettingsPage({ isVisible, onClose, mode = 'modal' }) {
   };
 
   const handleFAQsPress = () => {
-    setWebViewSource(require('../assets/faqs.html'));
+    setWebViewSource(
+      Platform.OS === 'ios'
+        ? require('../../ios/KidSpeak/faqs.html')
+        : {uri: 'file:///android_asset/faqs.html'}
+    );
     setWebViewTitle('FAQs');
     setShowWebView(true);
   };
@@ -162,7 +166,11 @@ function AppSettingsPage({ isVisible, onClose, mode = 'modal' }) {
   };
 
   const handlePrivacyPolicyPress = () => {
-    setWebViewSource(require('../assets/privacy-policy.html'));
+    setWebViewSource(
+      Platform.OS === 'ios'
+        ? require('../../ios/KidSpeak/privacy-policy.html')
+        : {uri: 'file:///android_asset/privacy-policy.html'}
+    );
     setWebViewTitle('Privacy Policy');
     setShowWebView(true);
   };
@@ -308,6 +316,7 @@ function AppSettingsPage({ isVisible, onClose, mode = 'modal' }) {
             <View style={styles.webViewPlaceholder} />
           </View>
           <WebView
+            originWhitelist={['*']}
             source={webViewSource}
             style={styles.webView}
             startInLoadingState={true}
@@ -347,17 +356,32 @@ function AppSettingsPage({ isVisible, onClose, mode = 'modal' }) {
       >
         <View style={styles.modalContainer}>
           <StatusBar barStyle="dark-content" />
-          <View style={[styles.userInfoHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity 
-              onPress={() => setShowUserInfo(false)} 
-              style={styles.userInfoCloseButton}
-            >
-              <Text style={styles.backIcon}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.userInfoTitle}>User Info</Text>
-            <View style={styles.headerRightPlaceholder} />
-          </View>
-          <UserInfoScreen onUserInfoSubmit={handleUserInfoSubmit} />
+          {Platform.OS === 'ios' ? (
+            <SafeAreaView style={styles.safeArea} edges={['top']}>
+              <View style={styles.userInfoHeader}>
+                <TouchableOpacity 
+                  onPress={() => setShowUserInfo(false)} 
+                  style={styles.userInfoCloseButton}
+                >
+                  <Text style={styles.backIcon}>←</Text>
+                </TouchableOpacity>
+                <Text style={styles.userInfoTitle}>User Info</Text>
+                <View style={styles.headerRightPlaceholder} />
+              </View>
+            </SafeAreaView>
+          ) : (
+            <View style={[styles.userInfoHeader, { paddingTop: Math.max(insets.top, 16) }]}>
+              <TouchableOpacity 
+                onPress={() => setShowUserInfo(false)} 
+                style={styles.userInfoCloseButton}
+              >
+                <Text style={styles.backIcon}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.userInfoTitle}>User Info</Text>
+              <View style={styles.headerRightPlaceholder} />
+            </View>
+          )}
+          <UserInfoScreen onUserInfoSubmit={handleUserInfoSubmit} isFromSettings={true} />
         </View>
       </Modal>
     </Modal>
@@ -384,6 +408,7 @@ function AppSettingsPage({ isVisible, onClose, mode = 'modal' }) {
             <View style={styles.webViewPlaceholder} />
           </View>
           <WebView
+            originWhitelist={['*']}
             source={webViewSource}
             style={styles.webView}
             startInLoadingState={true}
@@ -421,17 +446,32 @@ function AppSettingsPage({ isVisible, onClose, mode = 'modal' }) {
       >
         <View style={styles.modalContainer}>
           <StatusBar barStyle="dark-content" />
-          <View style={[styles.userInfoHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity 
-              onPress={() => setShowUserInfo(false)} 
-              style={styles.userInfoCloseButton}
-            >
-              <Text style={styles.backIcon}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.userInfoTitle}>User Info</Text>
-            <View style={styles.headerRightPlaceholder} />
-          </View>
-          <UserInfoScreen onUserInfoSubmit={handleUserInfoSubmit} />
+          {Platform.OS === 'ios' ? (
+            <SafeAreaView style={styles.safeArea} edges={['top']}>
+              <View style={styles.userInfoHeader}>
+                <TouchableOpacity 
+                  onPress={() => setShowUserInfo(false)} 
+                  style={styles.userInfoCloseButton}
+                >
+                  <Text style={styles.backIcon}>←</Text>
+                </TouchableOpacity>
+                <Text style={styles.userInfoTitle}>User Info</Text>
+                <View style={styles.headerRightPlaceholder} />
+              </View>
+            </SafeAreaView>
+          ) : (
+            <View style={[styles.userInfoHeader, { paddingTop: Math.max(insets.top, 16) }]}>
+              <TouchableOpacity 
+                onPress={() => setShowUserInfo(false)} 
+                style={styles.userInfoCloseButton}
+              >
+                <Text style={styles.backIcon}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.userInfoTitle}>User Info</Text>
+              <View style={styles.headerRightPlaceholder} />
+            </View>
+          )}
+          <UserInfoScreen onUserInfoSubmit={handleUserInfoSubmit} isFromSettings={true} />
         </View>
       </Modal>
     </>
@@ -442,6 +482,9 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#FCFCFC',
+  },
+  safeArea: {
+    backgroundColor: 'transparent',
   },
   container: {
     flex: 1,
@@ -468,7 +511,8 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 24,
-    color: '#333333',
+    color: '#4A4A4A',
+    fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 18,
@@ -587,19 +631,19 @@ const styles = StyleSheet.create({
   },
   userInfoHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: '#FCFCFC',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingBottom: 12,
+    backgroundColor: 'transparent',
   },
   userInfoCloseButton: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.04)',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   userInfoTitle: {
     fontSize: 18,

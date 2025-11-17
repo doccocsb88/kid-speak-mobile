@@ -5,8 +5,39 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// Import friend avatar images
+const friendAvatars = {
+  cat: require('../assets/images/friend_avatar/ic_friend_cat.png'),
+  owl: require('../assets/images/friend_avatar/ic_friend_owl.png'),
+  dolphin: require('../assets/images/friend_avatar/ic_friend_dolphin.png'),
+  dog: require('../assets/images/friend_avatar/ic_friend_dog.png'),
+  parrot: require('../assets/images/friend_avatar/ic_friend_parrot.png'),
+  bunny: require('../assets/images/friend_avatar/ic_friend_bunny.png'),
+  monkey: require('../assets/images/friend_avatar/ic_friend_monkey.png'),
+  peacook: require('../assets/images/friend_avatar/ic_friend_peacook.png'),
+  lion: require('../assets/images/friend_avatar/ic_friend_lion.png'),
+};
+
+// Helper function to get friend avatar image
+const getFriendAvatar = (friendId) => {
+  const avatarMap = {
+    'emma': friendAvatars.cat,        // Luna the Cat
+    'liam': friendAvatars.owl,         // Professor Owl
+    'sophia': friendAvatars.dolphin,   // Daisy the Dolphin
+    'noah': friendAvatars.dog,         // Buddy the Dog
+    'mia': friendAvatars.parrot,       // Coco the Parrot
+    'oliver': friendAvatars.owl,       // Wise the Owl
+    'ava': friendAvatars.bunny,        // Bella the Bunny
+    'ethan': friendAvatars.monkey,     // Sparky the Monkey
+    'isabella': friendAvatars.peacook, // Pepper the Peacock
+    'lucas': friendAvatars.lion,       // Leo the Lion
+  };
+  return avatarMap[friendId] || friendAvatars.cat; // Default fallback
+};
 
 // FRIENDS data moved from TopicSelection.js
 const FRIENDS = [
@@ -152,9 +183,8 @@ function FriendList({ navigation }) {
   };
 
   const handleSelectFriend = (friend) => {
-    // Map friend to topic format and navigate to chat
-    const friendTopic = mapFriendToTopic(friend);
-    navigation.navigate('AuthWrapper', { topic: friendTopic });
+    // Navigate to friend detail page
+    navigation.navigate('FriendDetail', { friend });
   };
 
   return (
@@ -178,7 +208,11 @@ function FriendList({ navigation }) {
               onPress={() => handleSelectFriend(friend)}
             >
               <View style={styles.cardImage}>
-                <Text style={styles.cardEmoji}>{friend.icon}</Text>
+                <Image
+                  source={getFriendAvatar(friend.id)}
+                  style={styles.cardAvatar}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.cardTitle}>{friend.name}</Text>
               <Text style={styles.cardSubtitle}>{friend.personality}</Text>
@@ -248,14 +282,16 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     aspectRatio: 1,
-    backgroundColor: '#F3F0E7',
+    backgroundColor: '#E8E8E8',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    overflow: 'hidden',
   },
-  cardEmoji: {
-    fontSize: 52,
+  cardAvatar: {
+    width: '100%',
+    height: '100%',
   },
   cardTitle: {
     fontSize: 16,
@@ -272,6 +308,6 @@ const styles = StyleSheet.create({
 });
 
 export default FriendList;
-export { FRIENDS, mapFriendToTopic };
+export { FRIENDS, mapFriendToTopic, getFriendAvatar };
 
 

@@ -6,9 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FRIENDS } from '../pages/FriendList';
+import { FRIENDS, mapFriendToTopic, getFriendAvatar } from '../pages/FriendList';
 import HomeTopicGrid from './HomeTopicGrid';
 import AppSettingsPage from './AppSettingsPage';
 
@@ -18,16 +19,10 @@ function HomeScreen({ navigation, hideBottomNav = false, hideHeader = false }) {
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
   const handleGoToChat = (friend) => {
-    // Map friend -> topic and navigate into auth/chat flow with preselected topic
+    // Navigate directly to ChatPage with friend topic
     if (friend) {
-      const topic = {
-        id: `friend_${friend.id}`,
-        title: `Chat with ${friend.name}`,
-        icon: friend.icon,
-        description: friend.description,
-        vocabulary: Array.isArray(friend.interests) ? friend.interests : [],
-      };
-      navigation.navigate('AuthWrapper', { topic });
+      const friendTopic = mapFriendToTopic(friend);
+      navigation.navigate('AuthWrapper', { topic: friendTopic });
       return;
     }
     navigation.navigate('AuthWrapper');
@@ -36,7 +31,7 @@ function HomeScreen({ navigation, hideBottomNav = false, hideHeader = false }) {
     navigation.navigate('ConversationHistory');
   };
   const handleTopicPress = (topic) => {
-    // Open chat with the selected topic
+    // Navigate directly to ChatPage with topic
     if (topic) {
       navigation.navigate('AuthWrapper', { topic });
       return;
@@ -98,7 +93,11 @@ function HomeScreen({ navigation, hideBottomNav = false, hideHeader = false }) {
               onPress={() => handleGoToChat(f)}
             >
               <View style={styles.friendImage}>
-                <Text style={styles.friendEmoji}>{f.icon}</Text>
+                <Image
+                  source={getFriendAvatar(f.id)}
+                  style={styles.friendAvatar}
+                  resizeMode="contain"
+                />
               </View>
               <Text style={styles.friendName}>{f.name}</Text>
             </TouchableOpacity>
@@ -215,13 +214,15 @@ const styles = StyleSheet.create({
   friendImage: {
     height: 110,
     borderRadius: 16,
-    backgroundColor: '#F3F0E7',
+    backgroundColor: '#E8E8E8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    overflow: 'hidden',
   },
-  friendEmoji: {
-    fontSize: 56,
+  friendAvatar: {
+    width: '100%',
+    height: '100%',
   },
   friendName: {
     fontSize: 16,

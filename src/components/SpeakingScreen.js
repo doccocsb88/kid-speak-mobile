@@ -16,6 +16,7 @@ import {
   PermissionsAndroid,
   Alert,
   Image,
+  StatusBar,
 } from 'react-native';
 import Voice from '@react-native-voice/voice';
 import axios from 'axios';
@@ -885,8 +886,31 @@ export default function SpeakingScreen({
 
   const headerTitle = getHeaderTitle();
 
+  // Calculate safe padding for Android - ensure minimum padding even if insets not ready
+  // Use StatusBar.currentHeight as fallback for Android, with minimum of 16
+  const getAndroidPaddingTop = () => {
+    if (Platform.OS !== 'android') return 0;
+    const statusBarHeight = StatusBar.currentHeight || 0;
+    const safeAreaTop = insets.top || 0;
+    // Use the larger value between statusBarHeight and safeAreaTop, with minimum of 16
+    return Math.max(statusBarHeight, safeAreaTop, 16);
+  };
+
+  // For iOS in Modal, SafeAreaView might not work consistently
+  // So we'll use manual padding based on insets instead
+  const getIOSPaddingTop = () => {
+    if (Platform.OS !== 'ios') return 0;
+    // Use insets.top directly, with minimum of 0 (insets should always be >= 0)
+    return Math.max(insets.top || 0, 0);
+  };
+
   const HeaderContent = (
-    <View style={[styles.header, Platform.OS === 'android' && { paddingTop: Math.max(insets.top, 16) }]}>
+    <View style={[
+      styles.header, 
+      Platform.OS === 'android' && { paddingTop: getAndroidPaddingTop() },
+      // For iOS, we'll use manual padding instead of relying solely on SafeAreaView in Modal
+      Platform.OS === 'ios' && { paddingTop: getIOSPaddingTop() }
+    ]}>
       <TouchableOpacity
         style={[styles.backButton, isBusy && styles.disabledButton]}
         disabled={isBusy}
@@ -922,14 +946,9 @@ export default function SpeakingScreen({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      {Platform.OS === 'ios' ? (
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-          {HeaderContent}
-        </SafeAreaView>
-      ) : (
-        HeaderContent
-      )}
+      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" translucent={false} />
+      {/* Header - For iOS in Modal, use manual padding instead of SafeAreaView for consistency */}
+      {HeaderContent}
 
       {/* Main Content */}
       <View style={styles.mainContent}>
@@ -1088,7 +1107,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   safeArea: {
-    backgroundColor: 'transparent',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
@@ -1097,7 +1116,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     paddingTop: 12,
-    backgroundColor: 'transparent',
+    backgroundColor: '#F8F9FA',
   },
   backButton: {
     width: 40,

@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ConversationService from '../services/conversationService';
 import { FRIENDS } from './FriendList';
+import { TOPICS } from './NewTopicSelection';
 
 function ConversationHistory({ navigation, hideBottomNav = false, isTabMode = false }) {
   const insets = useSafeAreaInsets();
@@ -106,7 +107,10 @@ function ConversationHistory({ navigation, hideBottomNav = false, isTabMode = fa
               Start learning English to create your first conversation!
             </Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate('AuthWrapper')}
+              onPress={() => {
+                const generalTopic = TOPICS.find(t => t.id === 'general-speaking');
+                navigation.navigate('AuthWrapper', { topic: generalTopic });
+              }}
               style={styles.startButton}
             >
               <Text style={styles.startButtonText}>Start a Conversation</Text>

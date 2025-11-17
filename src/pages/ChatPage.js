@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import ChatBubble from '../components/ChatBubble';
 import { FRIENDS } from '../pages/FriendList';
+import { TOPICS } from '../pages/NewTopicSelection';
 import AppSettingsPage from '../components/AppSettingsPage';
 import ConversationSettings from '../components/ConversationSettings';
 import SpeakingScreen from '../components/SpeakingScreen';
@@ -212,6 +213,31 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
   const handleSettingsPress = () => {
     Keyboard.dismiss();
     setShowConversationSettings(true);
+  };
+
+  // Handle avatar press - navigate to TopicDetails or FriendDetail
+  const handleAvatarPress = () => {
+    if (!selectedTopic) return;
+    
+    Keyboard.dismiss();
+    
+    // Check if it's a friend topic
+    if (selectedTopic.id?.startsWith('friend_')) {
+      // Extract friend ID and find friend from FRIENDS array
+      const friendId = selectedTopic.id.replace('friend_', '');
+      const friend = FRIENDS.find(f => f.id === friendId);
+      
+      if (friend && navigation) {
+        navigation.navigate('FriendDetail', { friend });
+      }
+    } else {
+      // Find topic from TOPICS array
+      const topic = TOPICS.find(t => t.id === selectedTopic.id);
+      
+      if (topic && navigation) {
+        navigation.navigate('TopicDetails', { topic });
+      }
+    }
   };
 
   // Handle premium button press
@@ -614,20 +640,6 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
     }
   };
 
-  // If showing speaking screen, render it
-  if (showSpeakingScreen) {
-    return (
-      <SpeakingScreen
-        userInfo={userInfo}
-        selectedTopic={selectedTopic}
-        currentSessionId={currentSessionId}
-        selectedVoice={selectedVoice}
-        initialMessages={messages}
-        onBack={handleSpeakingScreenClose}
-      />
-    );
-  }
-
   return (
     <ImageBackground 
       source={require('../assets/images/speak_bg.png')} 
@@ -643,6 +655,7 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
           onSettingsPress={handleSettingsPress}
           hideSettingsButton={false}
           selectedTopic={selectedTopic}
+          onAvatarPress={handleAvatarPress}
         />
       
         <View style={styles.chatContainer}>
@@ -752,6 +765,23 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
           // Topic selection removed - user can navigate to NewTopicSelection page instead
         }}
       />
+
+      {/* Speaking Screen Modal with Presentation Animation */}
+      <Modal
+        visible={showSpeakingScreen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleSpeakingScreenClose}
+      >
+        <SpeakingScreen
+          userInfo={userInfo}
+          selectedTopic={selectedTopic}
+          currentSessionId={currentSessionId}
+          selectedVoice={selectedVoice}
+          initialMessages={messages}
+          onBack={handleSpeakingScreenClose}
+        />
+      </Modal>
 
       </KeyboardAvoidingView>
     </ImageBackground>

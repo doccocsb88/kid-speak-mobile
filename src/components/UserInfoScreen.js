@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { markUserInfoCompleted, getUserData } from '../utils/onboardingStorage';
 
-function UserInfoScreen({ onUserInfoSubmit }) {
+function UserInfoScreen({ onUserInfoSubmit, isFromSettings = false }) {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -180,8 +180,10 @@ function UserInfoScreen({ onUserInfoSubmit }) {
         </View>
 
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.buttonIcon}>🚀</Text>
-          <Text style={styles.submitButtonText}>Start Learning!</Text>
+          {!isFromSettings && <Text style={styles.buttonIcon}>🚀</Text>}
+          <Text style={styles.submitButtonText}>
+            {isFromSettings ? 'Update' : 'Start Learning!'}
+          </Text>
         </TouchableOpacity>
       </View>
       
