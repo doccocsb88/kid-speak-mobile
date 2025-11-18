@@ -1,6 +1,6 @@
 // src/services/conversationSettingsManager.js
 // Centralized manager for conversation settings (voice, speed, topic, and all conversation options)
-// Synchronizes state across SpeakingScreen, ConversationSettings, ChatPage, and SideMenu
+// Synchronizes state across SpeakingScreen, ConversationSettings, and ChatPage
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

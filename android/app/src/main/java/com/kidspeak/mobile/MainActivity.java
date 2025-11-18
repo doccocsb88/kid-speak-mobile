@@ -1,6 +1,7 @@
 package com.kidspeak.mobile;
 
 import android.os.Bundle;
+import androidx.core.splashscreen.SplashScreen;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
@@ -33,6 +34,8 @@ public class MainActivity extends ReactActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    // Install the splash screen before calling super.onCreate()
+    SplashScreen.installSplashScreen(this);
     super.onCreate(savedInstanceState);
   }
 }

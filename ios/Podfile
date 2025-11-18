@@ -1,7 +1,9 @@
 require_relative '../node_modules/react-native/scripts/react_native_pods'
-require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
 
-platform :ios, '13.0'
+# Enable New Architecture
+ENV['RCT_NEW_ARCH_ENABLED'] = '1'
+
+platform :ios, '15.1'
 install! 'cocoapods', :deterministic_uuids => false
 
 target 'KidSpeak' do
@@ -17,11 +19,6 @@ target 'KidSpeak' do
     # we make it explicit here to aid in the React Native upgrade process.
     :hermes_enabled => false,
     :fabric_enabled => flags[:fabric_enabled],
-    # Enables Flipper.
-    #
-    # Note that if you have use_frameworks! enabled, Flipper will not work and
-    # you should disable the next line.
-    :flipper_configuration => FlipperConfiguration.disabled,
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
@@ -38,8 +35,10 @@ target 'KidSpeak' do
       # necessary for Mac Catalyst builds
       :mac_catalyst_enabled => false
     )
-    __apply_Xcode_12_5_M1_post_install_workaround(installer)
 
+    # Note: Header search path for React Native AppDelegate headers needs to be added manually in Xcode:
+    # Build Settings > Header Search Paths > Add: $(SRCROOT)/../node_modules/react-native/Libraries/AppDelegate
+    
     # Ensure Release builds are stripped and post-processed to avoid
     # large embedded frameworks inflating the final .app size.
     installer.pods_project.targets.each do |target|

@@ -260,8 +260,9 @@ const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.
   return (
     <View style={styles.container}>
       <StatusBar 
-        barStyle={(showPrivacyPolicy || showTermsOfUse) ? 'dark-content' : 'light-content'}
-        backgroundColor={(showPrivacyPolicy || showTermsOfUse) ? '#FFF' : '#6C5CE7'}
+        barStyle="dark-content"
+        backgroundColor="transparent"
+        translucent
       />
       
       {/* Show content only when we have products OR when not in initial loading */}

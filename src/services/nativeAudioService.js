@@ -1,12 +1,14 @@
 // src/services/nativeAudioService.js
-import { NativeModules, NativeEventEmitter } from 'react-native';
+import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 
 const { NativeAudioPlayer } = NativeModules;
-const nativeAudioEmitter = new NativeEventEmitter(NativeAudioPlayer);
+const nativeAudioEmitter = NativeAudioPlayer ? new NativeEventEmitter(NativeAudioPlayer) : null;
 
 /**
- * Native Audio Service for iOS
- * Uses native iOS AVAudioPlayer for better audio session handling
+ * Native Audio Service for iOS and Android
+ * Uses native audio players for better audio session handling
+ * - iOS: AVAudioPlayer
+ * - Android: MediaPlayer
  */
 class NativeAudioService {
   constructor() {
@@ -21,10 +23,10 @@ class NativeAudioService {
    */
   async playAudio(base64String) {
     try {
-      console.log('🔊 Native audio service: Starting playback...');
+      console.log(`🔊 Native audio service: Starting playback on ${Platform.OS}...`);
       
       if (!NativeAudioPlayer) {
-        throw new Error('NativeAudioPlayer module not available');
+        throw new Error(`NativeAudioPlayer module not available on ${Platform.OS}. Please rebuild the app.`);
       }
 
       // Start playback
@@ -35,6 +37,15 @@ class NativeAudioService {
       
       // CRITICAL: Wait for actual completion event before resolving
       return new Promise((resolve, reject) => {
+        if (!nativeAudioEmitter) {
+          console.warn('⚠️ NativeEventEmitter not available, using timeout fallback');
+          setTimeout(() => {
+            this.isPlaying = false;
+            resolve();
+          }, 30000);
+          return;
+        }
+        
         const timeout = setTimeout(() => {
           console.warn('⚠️ Audio playback timeout after 30s');
           this.isPlaying = false;

@@ -12,28 +12,24 @@ import {
   Platform,
   ImageBackground,
   Image,
-  Animated,
-  Dimensions,
   Modal,
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
 
-// Feature flag to enable/disable auto-prompt feature
-const ENABLE_AUTOPROMPT = false;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import Header from '../components/Header';
 import ChatBubble from '../components/ChatBubble';
-import TopicSelection, { FRIENDS } from '../components/TopicSelection';
-import SideMenu from '../components/SideMenu';
+import { FRIENDS } from '../pages/FriendList';
+import { TOPICS } from '../pages/NewTopicSelection';
 import AppSettingsPage from '../components/AppSettingsPage';
 import ConversationSettings from '../components/ConversationSettings';
 import SpeakingScreen from '../components/SpeakingScreen';
-import { speakText, getTTSOptions } from '../services/ttsService';
-import nativeAudioService from '../services/nativeAudioService';
+import { getTTSOptions } from '../services/ttsService';
+import { playAudioOrTTS, stopAudio } from '../services/playaudioService';
 import { API_BASE_URL } from '../config/api';
 import ConversationService from '../services/conversationService';
 import OfflineService from '../services/offlineService';
@@ -42,7 +38,7 @@ import conversationSettingsManager from '../services/conversationSettingsManager
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import userManager from '../services/UserManager';
 
-function ChatPage({ navigation }) {
+function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
   const { user, isAuthenticated, logout } = useAuth();
   const insets = useSafeAreaInsets();
   const { getOptions } = useConversationSettings();
@@ -52,26 +48,19 @@ function ChatPage({ navigation }) {
   const [ttsOptions, setTtsOptions] = useState({ voices: ['alloy'], models: ['tts-1'] });
   const [selectedVoice, setSelectedVoice] = useState('alloy');
   const [selectedTopic, setSelectedTopic] = useState(null);
-  const [showTopicSelection, setShowTopicSelection] = useState(false);
-  const [showTopicSelectionModal, setShowTopicSelectionModal] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
   const [speechRate, setSpeechRate] = useState(0.8);
   const [currentSessionId, setCurrentSessionId] = useState(null);
-  const [showSideMenu, setShowSideMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showConversationSettings, setShowConversationSettings] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [showSpeakingScreen, setShowSpeakingScreen] = useState(false);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
-  const [autoPromptSent, setAutoPromptSent] = useState(false);
   const messagesEndRef = useRef(null);
   const currentAudioRef = useRef(null);
-  const timeoutRef = useRef(null);
-  const lastInteractionRef = useRef(Date.now());
-  const chatAreaAnim = useRef(new Animated.Value(0)).current;
-  const isProcessingAutoPromptRef = useRef(false);
   const messagesRef = useRef(messages); // Add ref to always have latest messages
   const inputRef = useRef(null); // Add ref for TextInput to maintain focus
+  const hasAppliedInitialTopicRef = useRef(false);
 
   // 🎬 SCREENSHOT MODE - Set to true to load sample conversation for AppStore preview
   const SCREENSHOT_MODE = true; // Change to true when taking screenshots
@@ -174,39 +163,56 @@ function ChatPage({ navigation }) {
     return () => unsubscribe();
   }, []);
 
+  // If navigated from Conversation History with a selected conversation, hydrate state
+  useEffect(() => {
+    if (initialConversation && initialConversation.id !== currentConversationId) {
+      setMessages(initialConversation.messages || []);
+      setSelectedTopic(initialConversation.topic || null);
+      setCurrentConversationId(initialConversation.id);
+      setInputMessage('');
+    }
+  }, [initialConversation]);
+
   // Update userInfo when user authentication changes
   useEffect(() => {
-    if (isAuthenticated && user) {
-      setUserInfo({
-        name: user.name,
-        age: user.age,
-        languagePreference: user.languagePreference
-      });
-      // Update selected voice to user's preference
-      if (user.voicePreference) {
-        setSelectedVoice(user.voicePreference);
-      }
+    const updateUserInfo = async () => {
+      // Always load saved user data first (from onboarding) - this includes the name
+      const savedUserData = await getUserData();
       
-      // Load saved user data from onboarding
-      loadUserData();
-      
-      if (user.isGuest) {
-        setShowTopicSelection(true);
+      if (isAuthenticated && user) {
+        // Update selected voice to user's preference
+        if (user.voicePreference) {
+          setSelectedVoice(user.voicePreference);
+        }
+        
+        // Merge saved user data with auth user data, prioritizing saved name
+        setUserInfo({
+          name: savedUserData?.name || (user.isGuest ? null : user.name), // Use saved name first, then auth name if not guest
+          age: savedUserData?.age || user.age,
+          gender: savedUserData?.gender,
+          languagePreference: user.languagePreference
+        });
+      } else if (savedUserData) {
+        // If not authenticated, use saved user data
+        setUserInfo(savedUserData);
+      } else {
+        setUserInfo(null);
       }
-    } else {
-      setUserInfo(null);
-    }
+    };
+    
+    updateUserInfo();
   }, [isAuthenticated, user]);
 
   const loadUserData = async () => {
     try {
       const savedUserData = await getUserData();
       if (savedUserData) {
-        setUserInfo(savedUserData);
-        setShowTopicSelection(true);
+        return savedUserData;
       }
+      return null;
     } catch (error) {
       console.log('Error loading user data:', error);
+      return null;
     }
   };
 
@@ -253,10 +259,12 @@ function ChatPage({ navigation }) {
     }
   };
 
-  // Handle side menu toggle
-  const handleMenuPress = () => {
+  // Handle back button press - navigate back
+  const handleBackPress = () => {
     Keyboard.dismiss();
-    setShowSideMenu(true);
+    if (navigation && navigation.canGoBack()) {
+      navigation.goBack();
+    }
   };
 
   // Handle settings button press - open conversation settings
@@ -265,21 +273,37 @@ function ChatPage({ navigation }) {
     setShowConversationSettings(true);
   };
 
+  // Handle avatar press - navigate to TopicDetails or FriendDetail
+  const handleAvatarPress = () => {
+    if (!selectedTopic) return;
+    
+    Keyboard.dismiss();
+    
+    // Check if it's a friend topic
+    if (selectedTopic.id?.startsWith('friend_')) {
+      // Extract friend ID and find friend from FRIENDS array
+      const friendId = selectedTopic.id.replace('friend_', '');
+      const friend = FRIENDS.find(f => f.id === friendId);
+      
+      if (friend && navigation) {
+        navigation.navigate('FriendDetail', { friend });
+      }
+    } else {
+      // Find topic from TOPICS array
+      const topic = TOPICS.find(t => t.id === selectedTopic.id);
+      
+      if (topic && navigation) {
+        navigation.navigate('TopicDetails', { topic });
+      }
+    }
+  };
+
   // Handle premium button press
   const handlePremiumPress = () => {
     Keyboard.dismiss();
     if (navigation) {
       navigation.navigate('Paywall');
     }
-  };
-
-  // Handle conversation selection from side menu
-  const handleConversationSelect = (conversation) => {
-    setMessages(conversation.messages || []);
-    setSelectedTopic(conversation.topic);
-    setCurrentConversationId(conversation.id);
-    setInputMessage('');
-    setShowSideMenu(false);
   };
 
   // Handle speech rate change (synchronized with settings manager)
@@ -294,70 +318,29 @@ function ChatPage({ navigation }) {
     await conversationSettingsManager.setVoice(newVoice);
   };
 
-  // Helper to normalize audio data (array/string → base64)
-  const arrayToBase64 = (bytes) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let result = '';
-    let i = 0;
-    while (i < bytes.length) {
-      const a = bytes[i++];
-      const b = i < bytes.length ? bytes[i++] : 0;
-      const c = i < bytes.length ? bytes[i++] : 0;
-      const bitmap = (a << 16) | (b << 8) | c;
-      result += chars[(bitmap >> 18) & 63] + chars[(bitmap >> 12) & 63];
-      result += i - 2 < bytes.length ? chars[(bitmap >> 6) & 63] : '=';
-      result += i - 1 < bytes.length ? chars[bitmap & 63] : '=';
-    }
-    return result;
-  };
-
-  const normalizeToBase64 = (audioData) => {
-    if (!audioData) throw new Error('No audio data');
-    if (typeof audioData === 'string') return audioData; // already base64
-    if (Array.isArray(audioData)) return arrayToBase64(audioData);
-    if (audioData?.data && Array.isArray(audioData.data)) return arrayToBase64(audioData.data);
-    // last resort
-    const s = JSON.stringify(audioData);
-    const arr = Array.from(new Uint8Array([...s].map((c) => c.charCodeAt(0))));
-    return arrayToBase64(arr);
-  };
-
   // Play audio from backend or fallback to TTS
   const speakTextWithTTS = async (text, audioData = null) => {
     try {
       setIsSpeaking(true);
       
-      // If we have audio from backend, play it directly
-      if (audioData) {
-        console.log('[ChatPage] Playing audio from backend...');
-        const b64 = normalizeToBase64(audioData);
-        await nativeAudioService.playAudio(b64);
-      } else {
-        // Fallback to client-side TTS
-        console.log('[ChatPage] Using client-side TTS...');
-        await speakText(text, selectedVoice, 'gpt-4o-mini-tts');
-      }
+      // Use centralized audio service
+      await playAudioOrTTS(text, audioData, selectedVoice, 'gpt-4o-mini-tts');
     } catch (error) {
-      console.error('[ChatPage] TTS Error:', error);
-      console.log('[ChatPage]TTS not available, continuing without audio');
+      console.error('[ChatPage] Audio/TTS Error:', error);
+      console.log('[ChatPage] Audio/TTS not available, continuing without audio');
       // Don't show error to user, just continue without TTS
     } finally {
       setIsSpeaking(false);
-      
-      // Start timeout only after teacher finishes speaking
-      setTimeout(() => {
-        schedulerTimerToSendAutoPrompt();
-      }, 1000);
     }
   };
 
   // Stop current speech
   const stopSpeaking = async () => {
     try {
-      // Stop native audio service
-      await nativeAudioService.stopAudio();
+      // Stop audio using centralized service
+      await stopAudio();
     } catch (error) {
-      console.log('Error stopping native audio:', error);
+      console.log('Error stopping audio:', error);
     }
     
     if (currentAudioRef.current) {
@@ -368,221 +351,20 @@ function ChatPage({ navigation }) {
       window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
-    
-    // Start timeout when speech is manually stopped
-    schedulerTimerToSendAutoPrompt();
   };
-
-  // Clear timeout without starting a new one
-  const clearUserTimeout = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  };
-
-  // Reset timeout timer
-  const schedulerTimerToSendAutoPrompt = () => {
-    // Skip if auto-prompt feature is disabled
-    if (!ENABLE_AUTOPROMPT) {
-      return;
-    }
-    
-    lastInteractionRef.current = Date.now();
-    clearUserTimeout();
-    
-    // Only start timeout if teacher is not currently speaking and no auto-prompt is being processed
-    if (!isSpeaking && !isProcessingAutoPromptRef.current) {
-      // Set new timeout for 30 seconds
-      timeoutRef.current = setTimeout(() => {
-        handleAutoPrompt();
-      }, 30000); // 30 seconds
-    }
-  };
-
-  // Handle auto-prompt when student doesn't respond
-  const handleAutoPrompt = async () => {
-    // Skip if auto-prompt feature is disabled
-    if (!ENABLE_AUTOPROMPT) {
-      return;
-    }
-    
-    try {
-      // Block auto-prompt when out of daily requests (no paywall shown)
-      try {
-        const allowed = await userManager.canSendRequest();
-        if (!allowed) {
-          console.log('[AutoPrompt] Request limit reached — skipping auto-prompt');
-          setAutoPromptSent(true); // avoid repeated attempts until user interacts
-          return;
-        }
-      } catch (e) {
-        console.log('UserManager.canSendRequest error (auto-prompt):', e);
-      }
-
-      // Prevent concurrent auto-prompt processing
-      if (isProcessingAutoPromptRef.current) {
-        console.log('[AutoPrompt] Auto-prompt already being processed, skipping...');
-        return;
-      }
-      
-      // Check if we already sent an auto prompt and haven't received user response yet
-      if (autoPromptSent) {
-        console.log('[AutoPrompt] Auto prompt already sent, waiting for user response...');
-        return;
-      }
-      
-      // Skip auto-prompt entirely when offline
-      if (isOfflineMode) {
-        console.log('[AutoPrompt] Offline mode - skipping auto-prompt');
-        return;
-      }
-      
-      console.log('[AutoPrompt] selectedTopic:', JSON.stringify(selectedTopic));
-      console.log('[AutoPrompt] selectedTopic.id:', selectedTopic?.id);
-      console.log('[AutoPrompt] selectedTopic.title:', selectedTopic?.title);
-      
-      // Use messagesRef to get the latest messages (avoid closure issue)
-      const currentMessages = messagesRef.current;
-      
-      // Check if the last message was from AI (teacher)
-      const lastMessage = currentMessages[currentMessages.length - 1];
-      if (lastMessage && lastMessage.sender === 'ai') {
-        // Check if the last message was already an auto prompt by looking at recent messages
-        // Count how many AI messages we have in the last few messages
-        const recentMessages = currentMessages.slice(-2); // Check last 3 messages
-        const aiMessages = recentMessages.filter(msg => msg.sender === 'ai');
-        const aiMessageCount = aiMessages.length;
-        console.log('[ChatPage] Recent messages:', recentMessages);
-        console.log('[ChatPage] AI messages:', aiMessages);
-        console.log('[ChatPage] AI message count:', aiMessageCount);
-        // If we have 2 or more consecutive AI messages, likely an auto-prompt was already sent
-        if (aiMessageCount >= 2) {
-          console.log('[ChatPage] Multiple consecutive AI messages detected, skipping auto-prompt...');
-          return;
-        }
-        
-        
-        
-        // Mark that we're processing an auto-prompt
-        isProcessingAutoPromptRef.current = true;
-        
-        // Configure options for auto-prompt
-        const options = {
-          ...getOptions(),
-        };
-
-        // Prepare chat history for auto-prompt (bỏ message đầu tiên - initial greeting)
-        const chatHistory = currentMessages.slice(1).map(msg => ({
-          sender: msg.sender,
-          text: msg.text
-        }));
-
-        // Prepare topic data - extract only plain values
-        let topicData = null;
-        if (selectedTopic) {
-          topicData = {
-            id: String(selectedTopic.id || ''),
-            title: String(selectedTopic.title || ''),
-            vocabulary: Array.isArray(selectedTopic.vocabulary) ? selectedTopic.vocabulary.map(String) : [],
-            description: String(selectedTopic.description || '')
-          };
-        }
-
-        // Send a special message to trigger teacher's re-engagement
-        const response = await axios.post(`${API_BASE_URL}/chat/send-message`, {
-          message: "[AUTO_PROMPT] The student hasn't responded for 30 seconds. Please re-engage them with an encouraging question or suggest a new activity to continue the lesson.",
-          chatHistory: chatHistory, // Đính kèm toàn bộ lịch sử hội thoại
-          provider: 'openai',
-          includeAudio: true,
-          voice: selectedVoice || 'alloy',
-          model: 'gpt-4o-mini-tts', // Use new TTS model with instructions support
-          topic: topicData,
-          userInfo: userInfo,
-          sessionId: currentSessionId,
-          options: options
-        }, {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        // Handle response safely
-        const aiResponseText = response.data?.response || response.data?.data?.response || 
-                              "Let's try something new! What would you like to learn about today?";
-        const audioData = response.data?.audio || response.data?.data?.audio;
-        
-        if (aiResponseText && aiResponseText.trim() !== '') {
-          const aiMessage = { sender: 'ai', text: aiResponseText };
-          setMessages((prev) => [...prev, aiMessage]);
-          speakTextWithTTS(aiResponseText, audioData); // Pass audio from backend
-          setAutoPromptSent(true); // Mark that we've sent an auto prompt
-          // Don't reset timeout here - wait for user response to reset it
-        } else {
-          console.log('⚠️ Empty response from AUTO_PROMPT, skipping...');
-        }
-      }
-    } catch (error) {
-      console.error('Error in auto-prompt:', error);
-      
-      // If offline or network error, only show offline notice
-      if (OfflineService.shouldUseOfflineMode(error) || isOfflineMode) {
-        setIsOfflineMode(true);
-        OfflineService.setOfflineMode(true);
-        const offlineNotice = { sender: 'ai', text: 'App is offline. Please check your internet connection and try again.' };
-        setMessages((prev) => [...prev, offlineNotice]);
-        setAutoPromptSent(true);
-        return;
-      }
-
-      // For other errors, provide a generic fallback
-      const fallbackMessage = "Let's try something new! What would you like to learn about today?";
-      const aiMessage = { sender: 'ai', text: fallbackMessage };
-      setMessages((prev) => [...prev, aiMessage]);
-      speakTextWithTTS(fallbackMessage);
-      setAutoPromptSent(true);
-    } finally {
-      // Always reset the processing flag
-      isProcessingAutoPromptRef.current = false;
-    }
-  };
-
-  // Clear timeout on component unmount
-  useEffect(() => {
-    return () => {
-      clearUserTimeout();
-    };
-  }, []);
 
   // Pause ChatPage logic when SpeakingScreen is open
   useEffect(() => {
     if (showSpeakingScreen) {
       // Pause ChatPage logic
-      clearUserTimeout();
       stopSpeaking();
     }
   }, [showSpeakingScreen]);
 
-  // Handle chat area animation when side menu opens/closes
-  useEffect(() => {
-    if (showSideMenu) {
-      Animated.timing(chatAreaAnim, {
-        toValue: Dimensions.get('window').width * 0.9,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(chatAreaAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [showSideMenu]);
-
   // Generate appropriate greeting based on topic type
   const generateGreeting = (topic, userInfo) => {
-    const studentName = userInfo?.name || 'there';
+    // Always use the name from userInfo if available (loaded from saved onboarding data)
+    const studentName = userInfo?.name?.trim() || 'there';
     
     // Check if this is a friend topic
     if (topic?.id?.startsWith('friend_')) {
@@ -618,7 +400,7 @@ function ChatPage({ navigation }) {
       return `Hi ${studentName}! I'm ${friendName}, and I'm excited to chat with you today! What would you like to talk about?`;
     }
     
-    // Regular topic greeting
+    // Regular topic greeting (uses studentName from userInfo)
     return OfflineService.generateTopicGreeting(topic, userInfo);
   };
 
@@ -628,13 +410,10 @@ function ChatPage({ navigation }) {
     setInputMessage('');
     // Complete flow restart - stop all ongoing processes
     await stopSpeaking();
-    clearUserTimeout();
     
     // Reset all conversation-related state
     setSelectedTopic(topic);
     await conversationSettingsManager.setCurrentTopic(topic);
-    setShowTopicSelection(false);
-    setAutoPromptSent(false); // Reset auto prompt flag when starting new topic
     setIsOfflineMode(false); // Reset offline mode
     OfflineService.setOfflineMode(false);
     
@@ -660,13 +439,20 @@ function ChatPage({ navigation }) {
     // Play greeting and start timeout flow
     // speakTextWithTTS(topicGreeting);
     
-    // Start timeout after topic greeting
-    setTimeout(() => {
-      schedulerTimerToSendAutoPrompt();
-    }, 1000);
-    
     console.log('[TopicSelect] New topic flow started successfully');
   };
+
+  // Auto-apply topic passed from navigation (from NewTopicSelection)
+  useEffect(() => {
+    if (
+      !hasAppliedInitialTopicRef.current &&
+      initialSelectedTopic &&
+      userInfo
+    ) {
+      hasAppliedInitialTopicRef.current = true;
+      handleTopicSelect(initialSelectedTopic);
+    }
+  }, [initialSelectedTopic, userInfo]);
 
 
   // Handle returning from speaking screen
@@ -684,11 +470,6 @@ function ChatPage({ navigation }) {
       }
     }
     
-    // Add delay before restarting timeout logic to ensure clean state
-    setTimeout(() => {
-      console.log('[ChatPage] Restarting auto-prompt timer...');
-      schedulerTimerToSendAutoPrompt();
-    }, 1500);
   };
 
   const sendMessage = useCallback(async (messageToSend = inputMessage) => {
@@ -726,15 +507,6 @@ function ChatPage({ navigation }) {
     setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
-    
-    // Reset auto prompt flag when user responds
-    setAutoPromptSent(false);
-    
-    // Reset auto-prompt processing flag
-    isProcessingAutoPromptRef.current = false;
-    
-    // Clear timeout when user sends a message (will restart after teacher finishes speaking)
-    clearUserTimeout();
 
     // If currently offline, do not attempt smart/offline responses; just show offline notice
     if (isOfflineMode) {
@@ -901,9 +673,8 @@ function ChatPage({ navigation }) {
       console.log('[ChatPage] Opening SpeakingScreen...');
       Keyboard.dismiss();
       
-      // Stop any ongoing audio and clear timeouts before navigation
+      // Stop any ongoing audio before navigation
       await stopSpeaking();
-      clearUserTimeout();
       
       // Add small delay to ensure clean state
       setTimeout(() => {
@@ -927,20 +698,6 @@ function ChatPage({ navigation }) {
     }
   };
 
-  // If showing speaking screen, render it
-  if (showSpeakingScreen) {
-    return (
-      <SpeakingScreen
-        userInfo={userInfo}
-        selectedTopic={selectedTopic}
-        currentSessionId={currentSessionId}
-        selectedVoice={selectedVoice}
-        initialMessages={messages}
-        onBack={handleSpeakingScreenClose}
-      />
-    );
-  }
-
   return (
     <ImageBackground 
       source={require('../assets/images/speak_bg.png')} 
@@ -952,25 +709,14 @@ function ChatPage({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <Header 
-          onMenuPress={handleMenuPress} 
+          onBackPress={handleBackPress}
           onSettingsPress={handleSettingsPress}
-          hideSettingsButton={showTopicSelection}
+          hideSettingsButton={false}
+          selectedTopic={selectedTopic}
+          onAvatarPress={handleAvatarPress}
         />
       
-      {showTopicSelection ? (
-        <TopicSelection 
-          onTopicSelect={handleTopicSelect}
-          selectedAge={userInfo?.age || 7}
-        />
-      ) : (
-        <Animated.View 
-          style={[
-            styles.chatContainer,
-            {
-              transform: [{ translateX: chatAreaAnim }]
-            }
-          ]}
-        >
+        <View style={styles.chatContainer}>
 
           {/* Offline Mode Indicator */}
           {isOfflineMode && (
@@ -997,6 +743,12 @@ function ChatPage({ navigation }) {
           >
             <TouchableWithoutFeedback onPress={handleScrollViewPress}>
               <View>
+                {/* Today separator */}
+                {messages.length > 0 && (
+                  <View style={styles.dateSeparator}>
+                    <Text style={styles.dateSeparatorText}>Today</Text>
+                  </View>
+                )}
                 {messages.map((msg, index) => (
                   <View key={index} style={styles.messageContainer}>
                     <ChatBubble 
@@ -1013,43 +765,36 @@ function ChatPage({ navigation }) {
           <View style={[styles.chatInputArea, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <TouchableOpacity
               style={[
-                styles.speakButton, 
+                styles.micButton, 
                 isSpeaking && styles.blockedButton
               ]}
               onPress={handleSpeakClick}
               disabled={isSpeaking}
             >
-              <Image 
-                source={require('../assets/images/ic_audio.png')} 
-                style={[
-                  styles.speakButtonIcon,
-                  isSpeaking && styles.blockedIcon
-                ]} 
-                resizeMode="contain"
-              />
+              <Text style={styles.micButtonIcon}>🎤</Text>
             </TouchableOpacity>
-            <TextInput
-              ref={inputRef}
-              style={[styles.messageInput, isSpeaking && styles.blockedInput]}
-              placeholder={isSpeaking ? "Please wait...." : "Ask a question..."}
-              value={inputMessage}
-              onChangeText={(value) => {
-                if (!isSpeaking){
-                  setInputMessage(value);
-                  // Reset auto prompt timer when user is typing
-                  schedulerTimerToSendAutoPrompt();
-                }
-              
-              }}
-              multiline
-              blurOnSubmit={false}
-            />
+            <View style={styles.inputContainer}>
+              <TextInput
+                ref={inputRef}
+                style={[styles.messageInput, isSpeaking && styles.blockedInput]}
+                placeholder={isSpeaking ? "Please wait...." : "Type your message..."}
+                placeholderTextColor="#617c89"
+                value={inputMessage}
+                onChangeText={(value) => {
+                  if (!isSpeaking){
+                    setInputMessage(value);
+                  }
+                }}
+                multiline
+                blurOnSubmit={false}
+              />
+            </View>
             <TouchableOpacity 
               style={[styles.sendButton, isSpeaking && styles.blockedButton]} 
               onPress={() => {
                 sendMessage();
               }}
-              disabled={isSpeaking}
+              disabled={isSpeaking || !inputMessage.trim()}
             >
               <Text style={styles.sendButtonText}>Send</Text>
             </TouchableOpacity>
@@ -1059,24 +804,7 @@ function ChatPage({ navigation }) {
               <View style={styles.inputBlockOverlay} />
             )}
           </View>
-        </Animated.View>
-      )}
-
-      {/* Side Menu */}
-      <SideMenu
-        isVisible={showSideMenu}
-        onClose={() => setShowSideMenu(false)}
-        onConversationSelect={handleConversationSelect}
-        onSettingsPress={handleSettingsPress}
-        onPremiumPress={handlePremiumPress}
-        currentTopic={selectedTopic}
-        speechRate={speechRate}
-        onSpeechRateChange={handleSpeechRateChange}
-        selectedVoice={selectedVoice}
-        onVoiceChange={handleVoiceChange}
-        availableVoices={ttsOptions.voices}
-        chatAreaRef={chatAreaAnim}
-      />
+        </View>
 
       {/* App Settings Page */}
       <AppSettingsPage
@@ -1092,84 +820,27 @@ function ChatPage({ navigation }) {
         onChangeTopic={async () => {
           Keyboard.dismiss();
           setShowConversationSettings(false);
-          // Show topic selection modal
-          setTimeout(() => {
-            setShowTopicSelectionModal(true);
-          }, 300);
+          // Topic selection removed - user can navigate to NewTopicSelection page instead
         }}
       />
 
-      {/* Topic Selection Modal */}
+      {/* Speaking Screen Modal with Presentation Animation */}
       <Modal
-        visible={showTopicSelectionModal}
+        visible={showSpeakingScreen}
         animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => {
-          Keyboard.dismiss();
-          setShowTopicSelectionModal(false);
-        }}
+        presentationStyle="fullScreen"
+        onRequestClose={handleSpeakingScreenClose}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Change Topic</Text>
-            <TouchableOpacity 
-              onPress={() => {
-                Keyboard.dismiss();
-                setShowTopicSelectionModal(false);
-              }}
-              style={styles.modalCloseButton}
-            >
-              <Text style={styles.modalCloseText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          <TopicSelection 
-            onTopicSelect={async (topic) => {
-              console.log('[ModalTopicSelect] Starting new topic flow:', topic.title);
-              
-              // Complete flow restart - stop all ongoing processes
-              await stopSpeaking();
-              clearUserTimeout();
-              
-              // Reset all conversation-related state
-              setSelectedTopic(topic);
-              await conversationSettingsManager.setCurrentTopic(topic);
-              setShowTopicSelectionModal(false);
-              setAutoPromptSent(false);
-              setIsOfflineMode(false); // Reset offline mode
-              OfflineService.setOfflineMode(false);
-              
-              // Generate new conversation ID and session
-              const newConversationId = ConversationService.generateId();
-              setCurrentConversationId(newConversationId);
-              setCurrentSessionId(null); // Reset session ID
-              
-              // Start fresh chat session if user is authenticated (clears backend history + creates new session)
-              if (isAuthenticated) {
-                await startChatSession(topic);
-              }
-              
-              // Start the lesson with the selected topic and greeting message
-              const topicGreeting = generateGreeting(topic, userInfo);
-              const initialMessages = [{ sender: 'ai', text: topicGreeting }];
-              setMessages(initialMessages);
-              
-              // Save initial conversation
-              await saveConversation(initialMessages, topic);
-              
-              // Play greeting and start timeout flow
-              speakTextWithTTS(topicGreeting);
-              
-              // Start timeout after initial greeting
-              setTimeout(() => {
-                schedulerTimerToSendAutoPrompt();
-              }, 1000);
-              
-              console.log('[ModalTopicSelect] New topic flow started successfully');
-            }}
-            selectedAge={userInfo?.age || 7}
-          />
-        </View>
+        <SpeakingScreen
+          userInfo={userInfo}
+          selectedTopic={selectedTopic}
+          currentSessionId={currentSessionId}
+          selectedVoice={selectedVoice}
+          initialMessages={messages}
+          onBack={handleSpeakingScreenClose}
+        />
       </Modal>
+
       </KeyboardAvoidingView>
     </ImageBackground>
   );
@@ -1178,12 +849,14 @@ function ChatPage({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F0F2F5',
   },
   keyboardContainer: {
     flex: 1,
   },
   chatContainer: {
     flex: 1,
+    backgroundColor: '#F0F2F5',
   },
   offlineIndicator: {
     flexDirection: 'row',
@@ -1223,33 +896,43 @@ const styles = StyleSheet.create({
   },
   chatArea: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#F0F2F5',
   },
   chatContent: {
-    paddingVertical: 10,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#617c89',
+    backgroundColor: '#F0F2F5',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
   messageContainer: {
-    marginBottom: 12,
+    marginBottom: 0,
   },
   chatInputArea: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    alignItems: 'center',
+    backgroundColor: '#F0F2F5',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12, // This will be overridden by the dynamic paddingBottom
+    paddingTop: 8,
+    paddingBottom: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(224, 224, 224, 0.5)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+  },
+  inputContainer: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 12,
   },
   inputBlockOverlay: {
     position: 'absolute',
@@ -1260,39 +943,39 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     zIndex: 999,
   },
-  speakButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginRight: 8,
-    width: 48,
-    height: 40,
+  micButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#F5A623',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  micButtonIcon: {
+    fontSize: 24,
   },
   blockedButton: {
     backgroundColor: '#cccccc',
-  },
-  speakButtonIcon: {
-    width: 24,
-    height: 24,
-    tintColor: '#ffffff',
-  },
-  blockedIcon: {
-    tintColor: '#999999',
+    opacity: 0.5,
   },
   messageInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#dddddd',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderWidth: 0,
+    borderRadius: 9999,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
+    color: '#4A4A4A',
     maxHeight: 100,
-    minHeight: 44,
+    minHeight: 48,
     lineHeight: 20,
   },
   blockedInput: {
@@ -1302,53 +985,14 @@ const styles = StyleSheet.create({
   sendButton: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 8,
-    marginLeft: 8,
+    minWidth: 60,
   },
   sendButtonText: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: 60, // Add space for status bar
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseText: {
-    fontSize: 18,
-    color: '#ffffff',
-    fontWeight: 'bold',
   },
 });
 

@@ -117,45 +117,168 @@ function ConversationSettings({
   };
 
   // Render helper components
-  const renderToggle = (label, key, description = null) => (
-    <View style={styles.optionRow}>
-      <View style={styles.optionLabelContainer}>
-        <Text style={styles.optionLabel}>{label}</Text>
-        {description && <Text style={styles.optionDescription}>{description}</Text>}
+  const renderToggle = (label, key, description = null, icon = null) => (
+    <View style={styles.toggleRow}>
+      <View style={styles.toggleLeft}>
+        {icon && (
+          <View style={styles.toggleIconContainer}>
+            <Text style={styles.toggleIcon}>{icon}</Text>
+          </View>
+        )}
+        <View style={styles.toggleLabelContainer}>
+          <Text style={styles.toggleLabel}>{label}</Text>
+          {description && <Text style={styles.toggleDescription}>{description}</Text>}
+        </View>
       </View>
       <Switch
         value={options[key] ?? true}
         onValueChange={(value) => updateOption(key, value)}
-        trackColor={{ false: '#d1d1d6', true: '#34C759' }}
+        trackColor={{ false: '#f0f3f4', true: '#4cb2e6' }}
         thumbColor="#ffffff"
+        ios_backgroundColor="#f0f3f4"
       />
     </View>
   );
 
-  const renderEnumSelector = (label, key, enumValues, displayMap = {}) => (
-    <View style={styles.optionRow}>
-      <Text style={styles.optionLabel}>{label}</Text>
-      <View style={styles.enumButtons}>
-        {enumValues.map((value) => (
-          <TouchableOpacity
-            key={value}
-            style={[
-              styles.enumButton,
-              options[key] === value && styles.enumButtonActive
-            ]}
-            onPress={() => updateOption(key, value)}
-          >
-            <Text style={[
-              styles.enumButtonText,
-              options[key] === value && styles.enumButtonTextActive
-            ]}>
-              {displayMap[value] || value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' ')}
-            </Text>
-          </TouchableOpacity>
-        ))}
+  const renderEnumSelector = (label, key, enumValues, displayMap = {}, description = null, isSegmented = false) => {
+    if (isSegmented) {
+      return (
+        <View style={styles.optionGroup}>
+          <Text style={styles.optionGroupLabel}>{label}</Text>
+          {description && <Text style={styles.optionGroupDescription}>{description}</Text>}
+          <View style={styles.segmentedControl}>
+            {enumValues.map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={[
+                  styles.segmentedButton,
+                  options[key] === value && styles.segmentedButtonActive
+                ]}
+                onPress={() => updateOption(key, value)}
+              >
+                <Text style={[
+                  styles.segmentedButtonText,
+                  options[key] === value && styles.segmentedButtonTextActive
+                ]}>
+                  {displayMap[value] || value.charAt(0).toUpperCase() + value.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.optionGroup}>
+        <Text style={styles.optionGroupLabel}>{label}</Text>
+        {description && <Text style={styles.optionGroupDescription}>{description}</Text>}
+        <View style={styles.enumButtons}>
+          {enumValues.map((value) => (
+            <TouchableOpacity
+              key={value}
+              style={[
+                styles.enumButton,
+                options[key] === value && styles.enumButtonActive
+              ]}
+              onPress={() => updateOption(key, value)}
+            >
+              <Text style={[
+                styles.enumButtonText,
+                options[key] === value && styles.enumButtonTextActive
+              ]}>
+                {displayMap[value] || value.charAt(0).toUpperCase() + value.slice(1).replace(/_/g, ' ')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
+
+  const renderCorrectionMode = () => {
+    const correctionModeMap = {
+      'implicit': 'Gentle',
+      'explicit': 'Direct',
+      'sandwich': 'Helpful'
+    };
+    const correctionIcons = {
+      'implicit': '😊',
+      'explicit': '📋',
+      'sandwich': '💬'
+    };
+    const currentMode = options.correction_mode || 'implicit';
+    
+    return (
+      <View style={styles.optionGroup}>
+        <Text style={styles.optionGroupLabel}>Correction Mode</Text>
+        <Text style={styles.optionGroupDescription}>How your friend corrects your mistakes.</Text>
+        <View style={styles.correctionModeGrid}>
+          {['implicit', 'explicit', 'sandwich'].map((value) => (
+            <TouchableOpacity
+              key={value}
+              style={[
+                styles.correctionModeButton,
+                currentMode === value && styles.correctionModeButtonActive
+              ]}
+              onPress={() => updateOption('correction_mode', value)}
+            >
+              <Text style={styles.correctionModeIcon}>{correctionIcons[value]}</Text>
+              <Text style={[
+                styles.correctionModeText,
+                currentMode === value && styles.correctionModeTextActive
+              ]}>
+                {correctionModeMap[value]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderDifficultyLevel = () => {
+    const difficultyMap = {
+      'auto': 'Auto',
+      'starters': 'Starters',
+      'movers': 'Movers',
+      'flyers': 'Flyers'
+    };
+    const difficultyIcons = {
+      'auto': '✨',
+      'starters': '⭐',
+      'movers': '⭐',
+      'flyers': '⭐'
+    };
+    const currentDifficulty = options.difficulty || 'auto';
+    
+    return (
+      <View style={styles.optionGroup}>
+        <Text style={styles.optionGroupLabel}>Difficulty Level</Text>
+        <Text style={styles.optionGroupDescription}>Choose the English level for your chat.</Text>
+        <View style={styles.difficultyGrid}>
+          {['auto', 'starters', 'movers', 'flyers'].map((value) => (
+            <TouchableOpacity
+              key={value}
+              style={[
+                styles.difficultyButton,
+                currentDifficulty === value && styles.difficultyButtonActive
+              ]}
+              onPress={() => updateOption('difficulty', value)}
+            >
+              <Text style={styles.difficultyIcon}>{difficultyIcons[value]}</Text>
+              <Text style={[
+                styles.difficultyText,
+                currentDifficulty === value && styles.difficultyTextActive
+              ]}>
+                {difficultyMap[value]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
 
   const renderMultiSelect = (label, key, enumValues) => (
     <View style={styles.optionRow}>
@@ -218,12 +341,10 @@ function ConversationSettings({
   };
 
   const renderSection = (title, key, icon, children) => (
-    <View style={styles.collapsibleSection}>
-      <View style={styles.sectionHeaderCollapsible}>
-        <View style={styles.sectionHeaderLeft}>
-          <Text style={styles.sectionIcon}>{icon}</Text>
-          <Text style={styles.sectionTitle}>{title}</Text>
-        </View>
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.helpIcon}>ℹ️</Text>
       </View>
       <View style={styles.sectionContent}>
         {children}
@@ -244,8 +365,11 @@ function ConversationSettings({
           {/* Header with SafeArea */}
           <SafeAreaView style={styles.headerSafeArea}>
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>Conversation Settings</Text>
-              <View style={styles.headerButtons}>
+              <TouchableOpacity onPress={onClose} style={styles.backButton}>
+                <Text style={styles.backButtonText}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Chat Settings</Text>
+              <View style={styles.headerRight}>
                 <TouchableOpacity 
                   onPress={resetToDefaults} 
                   style={styles.resetButton}
@@ -253,14 +377,11 @@ function ConversationSettings({
                 >
                   <Text style={styles.resetButtonText}>Reset</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
               </View>
             </View>
           </SafeAreaView>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={true}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* Loading indicator */}
             {isLoading && (
               <View style={styles.loadingContainer}>
@@ -273,16 +394,6 @@ function ConversationSettings({
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>📚 Current Topic</Text>
-                  <TouchableOpacity 
-                    style={styles.changeTopicButton}
-                    onPress={handleChangeTopic}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.changeTopicButtonText}>Change</Text>
-                    <View style={styles.arrowIcon}>
-                      <Text style={styles.arrowText}>›</Text>
-                    </View>
-                  </TouchableOpacity>
                 </View>
                 <View style={styles.topicCard}>
                   <Text style={styles.topicIcon}>{currentTopic.icon || '📚'}</Text>
@@ -296,14 +407,21 @@ function ConversationSettings({
               </View>
             )}
 
-            {/* Pedagogy Settings */}
-            {renderSection('Pedagogy', 'pedagogy', '🎓', (
+            {/* Correction & Feedback Section */}
+            {renderSection('Correction & Feedback', 'correction', 'ℹ️', (
               <>
-                {renderToggle('Grammar Check', 'grammar_check', 'Correct grammar mistakes')}
-                {renderEnumSelector('Force Repeat', 'force_repeat', ['off', 'soft', 'strict'])}
-                {renderEnumSelector('Correction Mode', 'correction_mode', ['implicit', 'explicit', 'sandwich'])}
-                {renderEnumSelector('Difficulty', 'difficulty', ['auto', 'starters', 'movers', 'flyers'])}
-                {renderMultiSelect('Focus Areas', 'focus', ['pronunciation', 'vocabulary', 'grammar', 'fluency'])}
+                {renderToggle('Grammar Check', 'grammar_check', null, 'A')}
+                <View style={styles.divider} />
+                {renderCorrectionMode()}
+              </>
+            ))}
+
+            {/* Practice Style Section */}
+            {renderSection('Practice Style', 'practice', 'ℹ️', (
+              <>
+                {renderEnumSelector('Force Repeat', 'force_repeat', ['off', 'soft', 'strict'], {}, null, true)}
+                <View style={styles.divider} />
+                {renderDifficultyLevel()}
               </>
             ))}
 
@@ -421,10 +539,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f6f7f8',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    height: '85%',
+    height: '90%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -435,7 +553,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   headerSafeArea: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -443,67 +561,100 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  closeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  backButton: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeButtonText: {
-    fontSize: 16,
-    color: '#ffffff',
+  backButtonText: {
+    fontSize: 24,
+    color: '#111517',
+    fontWeight: '400',
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
     fontWeight: 'bold',
+    color: '#111517',
+    textAlign: 'center',
+    letterSpacing: -0.015,
+  },
+  headerRight: {
+    minWidth: 60,
+    alignItems: 'flex-end',
   },
   resetButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    minWidth: 60,
   },
   resetButtonText: {
     fontSize: 14,
-    color: '#ffffff',
+    color: '#4cb2e6',
     fontWeight: '600',
   },
   content: {
     flex: 1,
-    backgroundColor: '#f5f5f7',
+    backgroundColor: '#f6f7f8',
   },
-  section: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+  scrollContent: {
+    padding: 16,
+  },
+  // Section Card Styles
+  sectionCard: {
     backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111517',
+    letterSpacing: -0.015,
+    flex: 1,
+  },
+  helpIcon: {
+    fontSize: 20,
+    color: '#647b87',
+    marginLeft: 8,
+  },
+  sectionContent: {
+    // Content spacing handled by individual components
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e5e5ea',
+    marginVertical: 4,
   },
   changeTopicButton: {
     flexDirection: 'row',
@@ -557,60 +708,181 @@ const styles = StyleSheet.create({
     color: '#666666',
     lineHeight: 18,
   },
-  // Collapsible sections
-  collapsibleSection: {
-    backgroundColor: '#ffffff',
-    marginBottom: 2,
-  },
-  sectionHeaderCollapsible: {
+  // Toggle Styles
+  toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    minHeight: 56,
+    paddingVertical: 8,
   },
-  sectionHeaderLeft: {
+  toggleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  sectionIcon: {
+  toggleIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#f0f3f4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  toggleIcon: {
     fontSize: 20,
-    marginRight: 10,
+    color: '#111517',
   },
-  chevron: {
-    fontSize: 12,
-    color: '#8e8e93',
-    fontWeight: 'bold',
-  },
-  sectionContent: {
-    backgroundColor: '#f9f9f9',
-    paddingVertical: 8,
-  },
-  // Option controls
-  optionRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
-  },
-  optionLabelContainer: {
+  toggleLabelContainer: {
     flex: 1,
-    marginRight: 12,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#111517',
+    lineHeight: 22,
+  },
+  toggleDescription: {
+    fontSize: 13,
+    color: '#647b87',
+    marginTop: 2,
+  },
+  // Option Group Styles
+  optionGroup: {
+    marginTop: 8,
+  },
+  optionGroupLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111517',
+    marginBottom: 4,
+    paddingTop: 4,
+  },
+  optionGroupDescription: {
+    fontSize: 14,
+    color: '#647b87',
+    marginTop: -4,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  // Segmented Control Styles
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f3f4',
+    borderRadius: 8,
+    padding: 2,
+    gap: 2,
+  },
+  segmentedButton: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentedButtonActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentedButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#647b87',
+  },
+  segmentedButtonTextActive: {
+    color: '#111517',
+    fontWeight: '600',
+  },
+  // Correction Mode Styles
+  correctionModeGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  correctionModeButton: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: '#f0f3f4',
+  },
+  correctionModeButtonActive: {
+    borderColor: '#4cb2e6',
+    backgroundColor: 'rgba(76, 178, 230, 0.2)',
+  },
+  correctionModeIcon: {
+    fontSize: 24,
+  },
+  correctionModeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#647b87',
+  },
+  correctionModeTextActive: {
+    color: '#111517',
+    fontWeight: '600',
+  },
+  // Difficulty Level Styles
+  difficultyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 8,
+  },
+  difficultyButton: {
+    flex: 1,
+    minWidth: '45%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: '#f0f3f4',
+  },
+  difficultyButtonActive: {
+    borderColor: '#4cb2e6',
+    backgroundColor: 'rgba(76, 178, 230, 0.2)',
+  },
+  difficultyIcon: {
+    fontSize: 20,
+  },
+  difficultyText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#647b87',
+  },
+  difficultyTextActive: {
+    color: '#111517',
+    fontWeight: '600',
+  },
+  // Option controls (legacy - keeping for other sections)
+  optionRow: {
+    paddingVertical: 12,
   },
   optionLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#000000',
-    marginBottom: 4,
+    color: '#111517',
+    marginBottom: 8,
   },
   optionDescription: {
     fontSize: 13,
-    color: '#8e8e93',
+    color: '#647b87',
     marginTop: 2,
   },
   // Enum buttons (single select)
@@ -623,22 +895,22 @@ const styles = StyleSheet.create({
   enumButton: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: '#f0f0f0',
-    borderWidth: 1,
-    borderColor: '#d1d1d6',
+    borderRadius: 8,
+    backgroundColor: '#f0f3f4',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   enumButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: 'rgba(76, 178, 230, 0.2)',
+    borderColor: '#4cb2e6',
   },
   enumButtonText: {
     fontSize: 13,
-    color: '#666666',
+    color: '#647b87',
     fontWeight: '500',
   },
   enumButtonTextActive: {
-    color: '#ffffff',
+    color: '#111517',
     fontWeight: '600',
   },
   // Multi-select buttons
