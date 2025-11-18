@@ -134,7 +134,8 @@ function NewTopicSelection({ navigation }) {
   };
 
   const handleSelectTopic = (topic) => {
-    navigation.navigate('TopicDetails', { topic });
+    // Navigate to AuthWrapper (which renders ChatPage)
+    navigation.navigate('AuthWrapper', { topic });
   };
 
   const headerContent = (

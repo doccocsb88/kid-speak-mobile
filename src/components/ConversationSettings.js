@@ -99,23 +99,6 @@ function ConversationSettings({
     updateOption(key, newArray);
   };
 
-  // Handle topic change
-  const handleChangeTopic = () => {
-    if (onChangeTopic) {
-      // Let parent control topic selection flow
-      onChangeTopic();
-    } else {
-      // Fallback: open internal Topic Selection modal
-      if (onClose) {
-        // Close settings first to avoid overlapping modals that can block touches
-        onClose();
-        setTimeout(() => setShowTopicSelection(true), 250);
-      } else {
-        setShowTopicSelection(true);
-      }
-    }
-  };
-
   // Render helper components
   const renderToggle = (label, key, description = null, icon = null) => (
     <View style={styles.toggleRow}>
@@ -344,7 +327,7 @@ function ConversationSettings({
     <View style={styles.sectionCard}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.helpIcon}>ℹ️</Text>
+        {/* <Text style={styles.helpIcon}>ℹ️</Text> */}
       </View>
       <View style={styles.sectionContent}>
         {children}
@@ -391,7 +374,7 @@ function ConversationSettings({
 
             {/* Current Topic Section */}
             {currentTopic && (
-              <View style={styles.section}>
+              <View style={styles.currentTopicSection}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>📚 Current Topic</Text>
                 </View>
@@ -631,6 +614,20 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  currentTopicSection: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -647,6 +644,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#647b87',
     marginLeft: 8,
+    hidden: true,
   },
   sectionContent: {
     // Content spacing handled by individual components
@@ -687,8 +685,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
   },
   topicIcon: {
     fontSize: 24,
