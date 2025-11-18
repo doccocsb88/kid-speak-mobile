@@ -133,11 +133,6 @@ function TopicDetails({ navigation, route }) {
     navigation.navigate('AuthWrapper', { topic });
   };
 
-  const handleActivityPress = (activity) => {
-    // Navigate to chat with the selected topic and activity
-    navigation.navigate('AuthWrapper', { topic, activity });
-  };
-
   const activities = getTopicActivities(topic.id);
 
   const headerContent = (
@@ -201,11 +196,9 @@ function TopicDetails({ navigation, route }) {
           <Text style={styles.sectionTitle}>Activities</Text>
           <View style={styles.activitiesList}>
             {activities.map((activity, index) => (
-              <TouchableOpacity
+              <View
                 key={activity.id}
                 style={styles.activityCard}
-                onPress={() => handleActivityPress(activity)}
-                activeOpacity={0.7}
               >
                 <View style={styles.activityIconContainer}>
                   <Text style={styles.activityIcon}>{getActivityIcon(activity.type)}</Text>
@@ -214,7 +207,7 @@ function TopicDetails({ navigation, route }) {
                   <Text style={styles.activityTitle}>{activity.title}</Text>
                   <Text style={styles.activityDescription}>{activity.description}</Text>
                 </View>
-              </TouchableOpacity>
+              </View>
             ))}
           </View>
         </View>

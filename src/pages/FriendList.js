@@ -183,8 +183,9 @@ function FriendList({ navigation }) {
   };
 
   const handleSelectFriend = (friend) => {
-    // Navigate to friend detail page
-    navigation.navigate('FriendDetail', { friend });
+    // Map friend to topic format and navigate to AuthWrapper (which renders ChatPage)
+    const topic = mapFriendToTopic(friend);
+    navigation.navigate('AuthWrapper', { topic });
   };
 
   return (
