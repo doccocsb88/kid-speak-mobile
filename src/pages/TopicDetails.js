@@ -228,18 +228,18 @@ function TopicDetails({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F4F8',
+    backgroundColor: '#F0F8FF', // background-light
   },
   safeArea: {
-    backgroundColor: '#F2F4F8',
+    backgroundColor: '#F0F8FF',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F2F4F8',
+    backgroundColor: '#F0F8FF',
   },
   backButton: {
     width: 40,
@@ -247,17 +247,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.04)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   backIcon: {
     fontSize: 24,
-    color: '#4A4A4A',
+    color: '#1E293B',
     fontWeight: 'bold',
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0F2647',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+    flex: 1,
+    textAlign: 'center',
+    paddingRight: 40,
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -265,7 +268,7 @@ const styles = StyleSheet.create({
   },
   illustrationContainer: {
     width: '100%',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   illustration: {
     width: '100%',
@@ -275,9 +278,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
@@ -291,20 +295,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F2647',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
     marginBottom: 12,
   },
   learnText: {
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 22,
-    color: '#4A4A4A',
+    color: '#475569',
   },
   keyWordsContainer: {
     flexDirection: 'row',
@@ -321,8 +325,8 @@ const styles = StyleSheet.create({
   },
   keyWordText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#0F2647',
+    fontWeight: '500',
+    color: '#1E293B',
   },
   activitiesList: {
     gap: 12,
@@ -352,31 +356,31 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F2647',
+    color: '#1E293B',
     marginBottom: 4,
   },
   activityDescription: {
     fontSize: 14,
-    color: '#6B7A90',
+    color: '#475569',
     lineHeight: 20,
   },
   startButton: {
-    backgroundColor: '#2A66FF', // Teal/blue primary color
+    backgroundColor: '#4A90E2', // primary
     borderRadius: 25,
-    paddingVertical: 18,
+    paddingVertical: 16,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
     marginBottom: 24,
-    shadowColor: '#2A66FF',
+    shadowColor: '#4A90E2',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   startButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
   },

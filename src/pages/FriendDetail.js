@@ -136,6 +136,8 @@ function FriendDetail({ navigation, route }) {
       <ScrollView 
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 100) }]}
         showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        horizontal={false}
       >
         {/* Profile Image - Large banner style */}
         <View style={styles.profileImageContainer}>
@@ -163,7 +165,7 @@ function FriendDetail({ navigation, route }) {
         </View>
 
         {/* Interests Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, styles.interestsSection]}>
           <Text style={styles.sectionTitle}>Interests</Text>
           <View style={styles.interestsGrid}>
             {friend.interests?.slice(0, 4).map((interest, index) => (
@@ -323,14 +325,19 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#475569',
   },
+  interestsSection: {
+    paddingBottom: 12,
+  },
   interestsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    marginBottom: 0,
   },
   interestItem: {
     width: '47%',
-    aspectRatio: 1,
+    height: 100,
+    // aspectRatio: 1.0,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
