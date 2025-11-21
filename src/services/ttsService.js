@@ -13,27 +13,26 @@ Sound.setMode('Default');
 // Initialize Sound with proper error handling
 Sound.setActive(true);
 
-// Request audio permissions for Android
+// Request audio permissions for Android (playback only - NO microphone permission)
+// Note: Audio playback on Android does NOT require RECORD_AUDIO.
+// We keep this helper for future extension (e.g. MODIFY_AUDIO_SETTINGS),
+// but for now it always returns true so that ChatPage TTS playback
+// does NOT trigger a microphone permission dialog.
 async function requestAudioPermissions() {
-  if (Platform.OS === 'android') {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-        {
-          title: 'Audio Permission',
-          message: 'This app needs access to audio to play speech.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    } catch (err) {
-      console.warn('Audio permission request failed:', err);
-      return false;
+  try {
+    if (Platform.OS === 'android') {
+      console.log('[TTS] Skipping RECORD_AUDIO permission request for playback-only audio');
+      // No runtime permission needed for playback; microphone permission
+      // is requested explicitly inside SpeakingScreen when doing STT.
+      return true;
     }
+    // iOS doesn't need explicit permission for playback
+    return true;
+  } catch (err) {
+    console.warn('Audio permission check failed (playback only, continuing):', err);
+    // Fail open for playback – actual playback code will handle any real errors.
+    return true;
   }
-  return true; // iOS doesn't need explicit permission for playback
 }
 
 /**

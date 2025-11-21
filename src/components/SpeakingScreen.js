@@ -30,6 +30,7 @@ import { useConversationSettings } from '../hooks/useConversationSettings';
 import userManager from '../services/UserManager';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import ksSpeechAdapter from '../services/ksSpeechAdapter';
 
 // ====== State Machine ======
 const STATES = {
@@ -52,35 +53,57 @@ const initial = {
 };
 
 function reducer(s, a) {
+  const prevState = s.state;
+  let newState = s;
+  
   switch (a.type) {
     case 'START_LISTEN':
-      return { ...s, state: STATES.LISTENING, error: null };
+      newState = { ...s, state: STATES.LISTENING, error: null };
+      break;
     case 'STOP_LISTEN':
-      return { ...s, state: STATES.IDLE };
+      newState = { ...s, state: STATES.IDLE };
+      break;
     case 'TRANSCRIPT_UPDATE':
-      return { ...s, transcript: a.text, lastUserInput: a.text };
+      newState = { ...s, transcript: a.text, lastUserInput: a.text };
+      break;
     case 'ENTER_DETECTING':
-      return { ...s, state: STATES.DETECTING };
+      newState = { ...s, state: STATES.DETECTING };
+      break;
     case 'REQUESTING':
-      return { ...s, state: STATES.REQUESTING };
+      newState = { ...s, state: STATES.REQUESTING };
+      break;
     case 'PLAYING':
-      return { ...s, state: STATES.PLAYING };
+      newState = { ...s, state: STATES.PLAYING };
+      break;
     case 'SET_AI_TEXT':
-      return { ...s, aiText: a.text };
+      newState = { ...s, aiText: a.text };
+      break;
     case 'CLEAR_TRANSCRIPT':
       // Clear both transcript and lastUserInput for fresh start
-      return { ...s, transcript: '', lastUserInput: '' };
+      newState = { ...s, transcript: '', lastUserInput: '' };
+      break;
     case 'OFFLINE_ON':
-      return { ...s, offline: true };
+      newState = { ...s, offline: true };
+      break;
     case 'OFFLINE_OFF':
-      return { ...s, offline: false };
+      newState = { ...s, offline: false };
+      break;
     case 'ERROR':
-      return { ...s, state: STATES.ERROR, error: a.error };
+      newState = { ...s, state: STATES.ERROR, error: a.error };
+      break;
     case 'INTERRUPTED':
-      return { ...s, state: STATES.INTERRUPTED };
+      newState = { ...s, state: STATES.INTERRUPTED };
+      break;
     default:
       return s;
   }
+  
+  // Log state changes for debugging
+  if (prevState !== newState.state) {
+    console.log(`[State] Changed: ${prevState} → ${newState.state} (action: ${a.type})`);
+  }
+  
+  return newState;
 }
 
 // ====== Offline fallback generator ======
@@ -171,12 +194,49 @@ export default function SpeakingScreen({
   const isProcessingRef = useRef(false); // Flag to block transcript updates during API/playback
   const gateBlockedRef = useRef(false); // Block STT when premium gate is hit
   const voiceInitializedRef = useRef(false); // Track if Voice has been initialized
+  const lastSpeechResultTimeRef = useRef(0); // Track last time we got speech results
+  const healthCheckTimerRef = useRef(null); // Timer to check if voice recognition is still working
+  
+  // === Speech Recognition Module Selection ===
+  // Default to react-native-voice library, KSSpeech native module is disabled
+  const useKSSpeechRef = useRef(false);
+  const SpeechModuleRef = useRef(null);
+  const moduleNameRef = useRef('Voice');
+  
+  // Initialize module selection - Default to react-native-voice
+  useEffect(() => {
+    // Default to Voice library, only use KSSpeech if explicitly needed
+    const useKSSpeech = false; // Default to false - prefer Voice library
+    useKSSpeechRef.current = useKSSpeech;
+    SpeechModuleRef.current = useKSSpeech ? ksSpeechAdapter : Voice;
+    moduleNameRef.current = useKSSpeech ? 'KSSpeech' : 'Voice';
+    console.log(`[ModuleSelection] Selected module: ${moduleNameRef.current} (KSSpeech available: ${Platform.OS === 'android' && ksSpeechAdapter?.isAvailable?.()})`);
+
+    // Initialize KSSpeech adapter immediately if using it
+    if (useKSSpeech) {
+      console.log('[ModuleSelection] Initializing KSSpeech adapter...');
+      ksSpeechAdapter.initialize();
+    }
+
+    // Debug: Check if Voice module is available
+    if (!useKSSpeech) {
+      console.log(`[ModuleSelection] Voice module available:`, !!Voice);
+      console.log(`[ModuleSelection] Voice.start available:`, typeof Voice?.start === 'function');
+      console.log(`[ModuleSelection] Voice.stop available:`, typeof Voice?.stop === 'function');
+    }
+  }, []);
+  
+  // Use refs for dynamic module selection (can change during runtime if KSSpeech fails)
+  const useKSSpeech = useKSSpeechRef.current;
+  const SpeechModule = SpeechModuleRef.current || Voice;
+  const moduleName = moduleNameRef.current || 'Voice';
 
   // Keep refs in sync with state
   useEffect(() => { transcriptRef.current = S.transcript; }, [S.transcript]);
-  useEffect(() => { 
-    isPlayingRef.current = (S.state === STATES.PLAYING); 
+  useEffect(() => {
+    isPlayingRef.current = (S.state === STATES.PLAYING);
     isProcessingRef.current = (S.state === STATES.REQUESTING || S.state === STATES.PLAYING);
+    console.log(`[State] isProcessingRef updated to: ${isProcessingRef.current} (state: ${S.state})`);
   }, [S.state]);
   useEffect(() => { gateBlockedRef.current = premiumRequired; }, [premiumRequired]);
 
@@ -264,107 +324,268 @@ export default function SpeakingScreen({
     }, 2000);
   };
 
-  // === Voice listeners (bind once) ===
+  // === Speech Recognition listeners (bind once) ===
   useEffect(() => {
-    // Verify Voice module is available before binding listeners
-    console.log('[Voice] Checking Voice module availability...');
-    console.log('[Voice] Voice object:', Voice);
-    console.log('[Voice] Voice.start type:', typeof Voice?.start);
-    console.log('[Voice] Voice.cancel type:', typeof Voice?.cancel);
+    console.log(`[DEBUG] Binding listeners useEffect - START`);
+    const currentModule = SpeechModuleRef.current || Voice;
+    const currentModuleName = moduleNameRef.current || 'Voice';
+    const currentUseKSSpeech = useKSSpeechRef.current;
+    console.log(`[DEBUG] currentModule:`, currentModule);
+    console.log(`[DEBUG] currentModuleName:`, currentModuleName);
+    console.log(`[DEBUG] currentUseKSSpeech:`, currentUseKSSpeech);
     
-    if (!Voice) {
-      console.error('[Voice] Voice module is not available!');
+    console.log(`Speech Recognition [${currentModuleName}] Checking ${currentModuleName} module availability...`);
+    console.log(`Speech Recognition Module: [${currentModuleName}] Using module:`, currentUseKSSpeech ? 'KSSpeech (Native)' : 'Voice (Library)');
+    
+    // Verify module is available
+    if (!currentModule) {
+      console.error(`[${currentModuleName}] Module is not available!`);
       Alert.alert(
-        'Voice Module Error',
-        'Voice recognition module is not available. Please rebuild the app.',
+        'Speech Recognition Error',
+        'Speech recognition module is not available. Please rebuild the app.',
         [{ text: 'OK' }]
       );
       return;
     }
     
-    if (typeof Voice.start !== 'function') {
-      console.error('[Voice] Voice.start is not a function!');
+    if (typeof currentModule.start !== 'function') {
+      console.error(`[${currentModuleName}] start() is not a function!`);
       Alert.alert(
-        'Voice Module Error',
-        'Voice recognition module is not properly initialized. Please rebuild the app.',
+        'Speech Recognition Error',
+        'Speech recognition module is not properly initialized. Please rebuild the app.',
         [{ text: 'OK' }]
       );
       return;
     }
     
-    console.log('[Voice] Binding listeners...');
-    Voice.onSpeechStart = () => {
-      console.log('[Voice] onSpeechStart event received');
+    console.log(`[${currentModuleName}] Binding listeners...`);
+
+    // Debug: Check if event properties exist on module before assignment
+    console.log(`[${currentModuleName}] Module has onSpeechStart property before:`, typeof currentModule.onSpeechStart);
+    console.log(`[${currentModuleName}] Module has onSpeechResults property before:`, typeof currentModule.onSpeechResults);
+
+    // Common event handlers (work for both Voice and KSSpeech via adapter)
+    currentModule.onSpeechStart = () => {
+      const moduleName = moduleNameRef.current || 'Voice';
+      console.log(`[${moduleName}] ========== onSpeechStart event received ==========`);
+      console.log(`[${moduleName}] Current state:`, S.state);
+      console.log(`[${moduleName}] gateBlockedRef:`, gateBlockedRef.current);
+      console.log(`[${moduleName}] isProcessingRef:`, isProcessingRef.current);
+      console.log(`[${moduleName}] Should process:`, !gateBlockedRef.current && !isProcessingRef.current);
+
       if (gateBlockedRef.current) {
-        console.log('[Voice] Ignoring speech start - premium gate active');
-        return; 
+        console.log(`[${moduleName}] Ignoring speech start - premium gate active`);
+        return;
       }
-      if (isProcessingRef.current) { 
-        console.log('[Voice] Ignoring speech start - processing API/audio');
-        return; 
+      if (isProcessingRef.current) {
+        console.log(`[${moduleName}] Ignoring speech start - processing API/audio`);
+        return;
       }
-      console.log('[Voice] Speech started - updating UI state');
-      // Update state to LISTENING (may already be set, but ensure it's correct)
+      console.log(`[${moduleName}] Speech started - updating UI state`);
+      // Ensure processing state is false when we start listening
+      isProcessingRef.current = false;
       dispatch({ type: 'START_LISTEN' });
       startPulse();
       startAudioVisualization();
       showUserBubble();
+      console.log(`[${moduleName}] ========== onSpeechStart completed ==========`);
+
+      // Debug: Add a timeout to check if we get stuck in listening state
+      setTimeout(() => {
+        console.log(`[${moduleName}] DEBUG: 3s after onSpeechStart, state is:`, S.state);
+      }, 3000);
     };
 
-    Voice.onSpeechResults = (e) => {
+    currentModule.onSpeechPartialResults = (e) => {
+      const moduleName = moduleNameRef.current || 'Voice';
+      // console.log(`[${moduleName}] Partial:`, e?.value?.[0]); // Optional log
+      
+      if (gateBlockedRef.current) return;
+      if (isProcessingRef.current) return;
+
+      const t = e?.value?.[0] || '';
+      if (t) {
+        transcriptRef.current = t;
+        dispatch({ type: 'TRANSCRIPT_UPDATE', text: t });
+        showUserBubble();
+        // Arm silence timer on partials to act as VAD
+        armSilence2s();
+      }
+    };
+
+    currentModule.onSpeechResults = (e) => {
+      const moduleName = moduleNameRef.current || 'Voice';
+      console.log(`[${moduleName}] onSpeechResults event received, raw data:`, JSON.stringify(e));
+      
+      // Update last speech result time for health check
+      lastSpeechResultTimeRef.current = Date.now();
+      
       if (gateBlockedRef.current) {
-        console.log('[Voice] Ignoring speech results - premium gate active');
-        return; // ignore during premium gate
+        console.log(`[${moduleName}] Ignoring speech results - premium gate active`);
+        return;
       }
       if (isProcessingRef.current) {
-        console.log('[Voice] Ignoring speech results - processing API/audio');
-        return; // ignore during processing
+        console.log(`[${moduleName}] Ignoring speech results - processing API/audio`);
+        return;
       }
       const t = e?.value?.[0] || '';
-      console.log('[Voice] Results received:', t);
-      transcriptRef.current = t; // keep fresh
-      dispatch({ type: 'TRANSCRIPT_UPDATE', text: t });
-      showUserBubble();
-      armSilence2s(); // reset 2s window on each partial/final result
+      console.log(`[${moduleName}] Results received:`, t);
+      if (t) {
+        transcriptRef.current = t;
+        dispatch({ type: 'TRANSCRIPT_UPDATE', text: t });
+        showUserBubble();
+        armSilence2s();
+      } else {
+        console.warn(`[${moduleName}] Empty transcript received`);
+      }
     };
 
-    Voice.onSpeechEnd = () => {
+    currentModule.onSpeechEnd = () => {
+      const moduleName = moduleNameRef.current || 'Voice';
+      console.log(`[${moduleName}] onSpeechEnd event received`);
       if (gateBlockedRef.current) {
-        console.log('[Voice] Ignoring speech end - premium gate active');
+        console.log(`[${moduleName}] Ignoring speech end - premium gate active`);
         return;
       }
       if (isProcessingRef.current) {
-        console.log('[Voice] Ignoring speech end - processing API/audio');
+        console.log(`[${moduleName}] Ignoring speech end - processing API/audio`);
         return;
       }
-      console.log('[Voice] Speech ended');
-      // Some devices do not emit another results event after end
+      console.log(`[${moduleName}] Speech ended`);
       const t = (transcriptRef.current || '').trim();
-      if (t.length > 0) armSilence2s();
+      console.log(`[${moduleName}] Current transcript on speech end:`, t);
+      if (t.length > 0) {
+        console.log(`[${moduleName}] Transcript exists, arming 2s silence timer...`);
+        armSilence2s();
+      } else {
+        console.log(`[${moduleName}] No transcript, not arming silence timer`);
+      }
     };
 
-    Voice.onSpeechError = (err) => {
-      console.warn('[Voice] error', err);
-      dispatch({ type: 'ERROR', error: err });
+    currentModule.onSpeechError = async (err) => {
+      const moduleName = moduleNameRef.current || 'Voice';
+      const errorMsg = err?.error?.message || err?.message || String(err);
+      const errorCode = err?.code || err?.error?.code;
+      console.warn(`[${moduleName}] onSpeechError event received:`, errorMsg);
+      console.warn(`[${moduleName}] Error details:`, JSON.stringify(err, null, 2));
+      console.warn(`[${moduleName}] Error code:`, errorCode);
+      console.warn(`[${moduleName}] Full error object:`, err);
+
+      // Handle NO_SPEECH_DETECTED (-1) and NO_MATCH (7) errors more aggressively
+      const isSpeechError = errorCode === -1 || errorCode === 7 ||
+                           errorMsg.toLowerCase().includes('no speech detected') ||
+                           errorMsg.toLowerCase().includes('no match');
+
+      if (isSpeechError) {
+        console.warn(`[${moduleName}] Speech recognition failed (${errorCode}), restarting...`);
+
+        // Stop current session
+        try {
+          const currentModule = SpeechModuleRef.current || Voice;
+          if (currentModule.stop) await currentModule.stop();
+          if (currentModule.cancel) await currentModule.cancel();
+        } catch (cleanupErr) {
+          console.warn(`[${moduleName}] Cleanup error:`, cleanupErr.message);
+        }
+
+        // Reset state and restart after a delay
+        dispatch({ type: 'STOP_LISTEN' });
+        stopPulse();
+        stopAudioVisualization();
+
+        setTimeout(async () => {
+          console.log(`[${moduleName}] Restarting speech recognition after error...`);
+          try {
+            await startListening();
+          } catch (restartErr) {
+            console.error(`[${moduleName}] Failed to restart after error:`, restartErr);
+            dispatch({ type: 'ERROR', error: restartErr });
+          }
+        }, 1000);
+        return;
+      }
+
+      // Don't set ERROR state for minor errors that don't affect listening
+      // Only set ERROR for critical errors
+      const criticalErrors = ['permission', 'not available', 'null', 'not linked'];
+      const isCritical = criticalErrors.some(keyword =>
+        errorMsg.toLowerCase().includes(keyword)
+      );
+
+      if (isCritical) {
+        console.error(`[${moduleName}] Critical error detected, setting ERROR state`);
+        dispatch({ type: 'ERROR', error: err });
+      } else {
+        console.warn(`[${moduleName}] Non-critical error, ignoring (listening may still work)`);
+        // Don't change state - let listening continue
+      }
     };
 
-    // Add listener for volume change to prevent warning
-    Voice.onSpeechVolumeChanged = (e) => {
+    currentModule.onSpeechVolumeChanged = (e) => {
       // Optional: you can use this to show volume indicator
-      // console.log('[Voice] Volume:', e?.value);
+      const moduleName = moduleNameRef.current || 'Voice';
+      console.log(`[${moduleName}] Volume:`, e?.value);
     };
 
-      return () => {
-      console.log('[Voice] Cleanup: Destroying Voice instance...');
+    // Debug: Check if listeners were assigned
+    console.log(`[${currentModuleName}] After assignment - onSpeechStart:`, typeof currentModule.listeners?.onSpeechStart);
+    console.log(`[${currentModuleName}] After assignment - onSpeechResults:`, typeof currentModule.listeners?.onSpeechResults);
+    console.log(`[${currentModuleName}] Module listeners object:`, currentModule.listeners);
+
+    return () => {
+      const moduleName = moduleNameRef.current || 'Voice';
+      const currentModule = SpeechModuleRef.current || Voice;
+      console.log(`[${moduleName}] ========== Cleanup: Destroying ${moduleName} instance ==========`);
       clearSilenceTimer();
       stopPulse();
       stopAudioVisualization();
+      
+      // Reset initialization flag so next mount will do full initialization
+      voiceInitializedRef.current = false;
+      console.log(`[${moduleName}] Reset voiceInitializedRef to false`);
+      
       // Complete cleanup sequence
-      Voice.cancel()
-        .then(() => Voice.stop())
-        .then(() => Voice.destroy())
-        .then(() => Voice.removeAllListeners())
-        .catch(err => console.warn('[Voice] Cleanup error:', err));
+      const cleanup = async () => {
+        try {
+          console.log(`[${moduleName}] Starting cleanup sequence...`);
+          if (currentModule.cancel) {
+            try {
+              await currentModule.cancel();
+              console.log(`[${moduleName}] cancel() completed`);
+            } catch (e) {
+              console.log(`[${moduleName}] cancel() error (expected if not active):`, e?.message);
+            }
+          }
+          if (currentModule.stop) {
+            try {
+              await currentModule.stop();
+              console.log(`[${moduleName}] stop() completed`);
+            } catch (e) {
+              console.log(`[${moduleName}] stop() error (expected if not active):`, e?.message);
+            }
+          }
+          if (currentModule.destroy) {
+            try {
+              await currentModule.destroy();
+              console.log(`[${moduleName}] destroy() completed`);
+            } catch (e) {
+              console.warn(`[${moduleName}] destroy() error:`, e?.message);
+            }
+          }
+          if (currentModule.removeAllListeners) {
+            currentModule.removeAllListeners();
+            console.log(`[${moduleName}] removeAllListeners() completed`);
+          } else if (useKSSpeechRef.current) {
+            // KSSpeech adapter has removeAllListeners method
+            ksSpeechAdapter.removeAllListeners();
+            console.log(`[${moduleName}] KSSpeech removeAllListeners() completed`);
+          }
+          console.log(`[${moduleName}] ========== Cleanup completed ==========`);
+        } catch (err) {
+          console.error(`[${moduleName}] Cleanup error:`, err);
+        }
+      };
+      cleanup();
     };
   }, []);
 
@@ -418,123 +639,106 @@ export default function SpeakingScreen({
 
   // === Start/Stop listening ===
   const startListening = async () => {
+    console.log(`[DEBUG] startListening() called - BEGIN DEBUGGING`);
+    const currentModuleName = moduleNameRef.current || 'Voice';
+    console.log(`[${currentModuleName}] startListening() called`);
+    console.log(`[DEBUG] useKSSpeechRef.current:`, useKSSpeechRef.current);
+    console.log(`[DEBUG] moduleNameRef.current:`, moduleNameRef.current);
+    console.log(`[DEBUG] SpeechModuleRef.current:`, SpeechModuleRef.current);
+    
     try {
       if (gateBlockedRef.current) {
-        console.log('[Voice] startListening blocked by premium gate');
+        console.log(`[${currentModuleName}] startListening blocked by premium gate`);
         return;
       }
       
+      console.log(`[${currentModuleName}] Checking permission...`);
       // Request permission first (Android)
       const hasPermission = await requestRecordAudioPermission();
       if (!hasPermission) {
-        console.log('[Voice] Cannot start listening - permission denied');
+        console.log(`[${currentModuleName}] Cannot start listening - permission denied`);
         dispatch({ type: 'ERROR', error: new Error('Microphone permission denied') });
         return;
       }
+      console.log(`[${currentModuleName}] Permission granted, proceeding...`);
 
-      console.log('[Voice] Starting listening...');
+      const currentModule = SpeechModuleRef.current || Voice;
       
-      // Verify Voice module is available before starting
-      if (!Voice || typeof Voice.start !== 'function') {
-        throw new Error('Voice module is not available. Please rebuild the app.');
-      }
+      console.log(`[${currentModuleName}] Starting listening...`);
       
-      // CRITICAL: Check if native module is actually loaded
-      const { NativeModules } = require('react-native');
-      const voiceModuleKeys = Object.keys(NativeModules).filter(k => k.toLowerCase().includes('voice'));
-      console.log('[Voice] NativeModules Voice-related keys:', voiceModuleKeys);
-      
-      // Check if native module exists - if not, it means the app needs to be rebuilt
-      if (voiceModuleKeys.length === 0 && Platform.OS === 'android') {
-        // Try to check the actual native module reference
-        try {
-          // Attempt to access the native module to see if it's null
-          const testStart = Voice.start;
-          if (!testStart) {
-            throw new Error('Voice native module is not linked. Please rebuild the app: cd android && ./gradlew clean && cd .. && npm run android');
-          }
-        } catch (testErr) {
-          console.error('[Voice] Native module check failed:', testErr);
-          throw new Error('Voice native module is not linked. Please rebuild the app: cd android && ./gradlew clean && cd .. && npm run android');
-        }
+      // Verify module is available before starting
+      if (!currentModule || typeof currentModule.start !== 'function') {
+        throw new Error(`${currentModuleName} module is not available. Please rebuild the app.`);
       }
       
       // CRITICAL: On React Native 0.82 with New Architecture disabled, 
       // native modules may need extra time to initialize
-      console.log('[Voice] Attempting to initialize native module...');
+      console.log(`[${currentModuleName}] Attempting to initialize native module...`);
       
       // Wait for React Native bridge to be fully ready
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Check if native module is now loaded
-      console.log('[Voice] Checking native module load status...');
-      console.log('[Voice] Voice._loaded:', Voice._loaded);
-      
-      // CRITICAL: On Android, only cleanup if Voice was already initialized
-      // Don't call cancel/stop on first initialization as it can cause null reference
+      // CRITICAL: On Android, only cleanup if module was already initialized
       if (voiceInitializedRef.current) {
         try {
-          // Only cancel/stop if we're currently listening (don't destroy or remove listeners!)
           try {
-            await Voice.cancel();
+            if (currentModule.cancel) await currentModule.cancel();
           } catch (cancelErr) {
-            // Ignore if not active - this is expected
-            console.log('[Voice] Cancel (not active, expected):', cancelErr?.message);
+            console.log(`[${currentModuleName}] Cancel (not active, expected):`, cancelErr?.message);
           }
           
           try {
-            await Voice.stop();
+            if (currentModule.stop) await currentModule.stop();
           } catch (stopErr) {
-            // Ignore if not active - this is expected
-            console.log('[Voice] Stop (not active, expected):', stopErr?.message);
+            console.log(`[${currentModuleName}] Stop (not active, expected):`, stopErr?.message);
           }
           
-          // Small delay to ensure clean state (especially on Android)
           await new Promise(resolve => setTimeout(resolve, 200));
         } catch (cleanupErr) {
-          console.log('[Voice] Pre-start cleanup error (non-critical):', cleanupErr?.message);
-          // Don't throw - continue to try starting
+          console.log(`[${currentModuleName}] Pre-start cleanup error (non-critical):`, cleanupErr?.message);
         }
       } else {
-        // First time initialization - wait longer for native module to be ready
-        console.log('[Voice] First initialization, waiting for module to be ready...');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Increased wait time
+        console.log(`[${currentModuleName}] First initialization, waiting for module to be ready...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      // Listeners are already bound in useEffect - don't rebind them!
-      // On Android, rebinding listeners can cause the native module to become null
-      
-      // Start voice recognition with retry logic FIRST
-      console.log('[Voice] Calling Voice.start("en-US")...');
-      
-      // Retry logic for Android - sometimes native module needs a moment
-      let retries = 5; // Increased retries
+      // Start voice recognition with retry logic
+      console.log(`[${currentModuleName}] Calling ${currentModuleName}.start("en-US")...`);
+
+      // Debug: Check current module state before starting
+      console.log(`[${currentModuleName}] Module object:`, currentModule);
+      console.log(`[${currentModuleName}] Module start function:`, typeof currentModule.start);
+
+      let retries = 5;
       let lastError = null;
       let startSuccess = false;
-      
+
       while (retries > 0) {
         try {
-          // Check if error is about null native module before retrying
-          await Voice.start('en-US');
-          voiceInitializedRef.current = true; // Mark as initialized after successful start
+          console.log(`[${currentModuleName}] Attempt ${6 - retries}/5: calling start...`);
+          const startResult = await currentModule.start('en-US');
+          console.log(`[${currentModuleName}] start() returned:`, startResult);
+          voiceInitializedRef.current = true;
           startSuccess = true;
-          console.log('[Voice] Voice.start() succeeded, waiting for onSpeechStart event...');
-          break; // Success - exit retry loop
+          console.log(`[${currentModuleName}] ${currentModuleName}.start() succeeded, waiting for onSpeechStart event...`);
+          break;
         } catch (startErr) {
           lastError = startErr;
           const errorMsg = startErr?.message || String(startErr);
           
+          // Since we default to Voice, log the error but don't fallback
+          console.warn(`[${currentModuleName}] Start failed:`, errorMsg);
+          
           // If error indicates native module is null, don't retry - it needs rebuild
           if (errorMsg.includes('null') || errorMsg.includes('startSpeech') || errorMsg.includes('Cannot read property')) {
-            console.error('[Voice] Native module is null - app needs rebuild');
-            throw new Error('Voice native module is not properly linked. Please rebuild the app:\n\ncd android && ./gradlew clean && cd .. && npm run android');
+            console.error(`[${currentModuleName}] Native module is null - app needs rebuild`);
+            throw new Error(`${currentModuleName} native module is not properly linked. Please rebuild the app:\n\ncd android && ./gradlew clean && cd .. && npm run android`);
           }
           
           retries--;
-          console.warn(`[Voice] Start failed, retries left: ${retries}`, errorMsg);
+          console.warn(`[${currentModuleName}] Start failed, retries left: ${retries}`, errorMsg);
           
           if (retries > 0) {
-            // Wait longer before retry
             await new Promise(resolve => setTimeout(resolve, 500));
           }
         }
@@ -542,30 +746,25 @@ export default function SpeakingScreen({
       
       // Only update state if start was successful
       if (startSuccess) {
-        // Update state immediately for UI feedback
-        // onSpeechStart listener will also dispatch START_LISTEN when triggered
         dispatch({ type: 'START_LISTEN' });
         startPulse();
         startAudioVisualization();
-        console.log('[Voice] Listening started successfully, state set to LISTENING');
-        
-        // On Android, onSpeechStart might be delayed, so we set state immediately
-        // The listener will confirm when it fires, but UI should show listening state right away
+        console.log(`[${currentModuleName}] Listening started successfully, state set to LISTENING`);
+        console.log(`[${currentModuleName}] Waiting for onSpeechStart event to confirm...`);
       } else {
-        // All retries failed
-        throw lastError || new Error('Failed to start voice recognition after multiple attempts');
+        throw lastError || new Error(`Failed to start speech recognition after multiple attempts`);
       }
     } catch (e) {
-      console.error('[Voice] Failed to start listening:', e);
-      voiceInitializedRef.current = false; // Reset on failure
+      const currentModuleName = moduleNameRef.current || 'Voice';
+      console.error(`[${currentModuleName}] Failed to start listening:`, e);
+      voiceInitializedRef.current = false;
       
-      // Reset state to IDLE on error (not ERROR state, so user can retry)
       dispatch({ type: 'STOP_LISTEN' });
       dispatch({ type: 'ERROR', error: e });
       stopPulse();
       stopAudioVisualization();
       
-      // Show user-friendly error message with rebuild instructions
+      // Show user-friendly error message
       if (Platform.OS === 'android') {
         const errorMsg = e?.message || String(e);
         const needsRebuild = errorMsg.includes('null') || errorMsg.includes('startSpeech') || errorMsg.includes('not properly linked') || errorMsg.includes('not linked');
@@ -573,7 +772,7 @@ export default function SpeakingScreen({
         Alert.alert(
           'Speech Recognition Error',
           needsRebuild 
-            ? 'Voice recognition module is not properly linked. Please rebuild the app:\n\n1. Stop the app\n2. Run: cd android && ./gradlew clean\n3. Run: cd .. && npm run android'
+            ? `Speech recognition module is not properly linked. Please rebuild the app:\n\n1. Stop the app\n2. Run: cd android && ./gradlew clean\n3. Run: cd .. && npm run android`
             : 'Unable to start speech recognition. Please try again or restart the app.',
           [{ text: 'OK' }]
         );
@@ -583,13 +782,16 @@ export default function SpeakingScreen({
 
   const stopListening = async () => {
     try {
-      console.log('[Voice] Stopping listening...');
+      const currentModule = SpeechModuleRef.current || Voice;
+      const currentModuleName = moduleNameRef.current || 'Voice';
+      console.log(`[${currentModuleName}] Stopping listening...`);
       clearSilenceTimer();
-      await Voice.stop();
+      if (currentModule.stop) await currentModule.stop();
       dispatch({ type: 'STOP_LISTEN' });
-      console.log('[Voice] Listening stopped');
+      console.log(`[${currentModuleName}] Listening stopped`);
     } catch (e) {
-      console.error('[Voice] Failed to stop listening:', e);
+      const currentModuleName = moduleNameRef.current || 'Voice';
+      console.error(`[${currentModuleName}] Failed to stop listening:`, e);
       dispatch({ type: 'ERROR', error: e });
     } finally {
       stopPulse();
@@ -612,8 +814,9 @@ export default function SpeakingScreen({
         console.log('[Gate] Daily limit reached — blocking and showing paywall');
         setPremiumRequired(true);
         try {
-          await Voice.stop();
-          await Voice.cancel();
+          const currentModule = SpeechModuleRef.current || Voice;
+          if (currentModule.stop) await currentModule.stop();
+          if (currentModule.cancel) await currentModule.cancel();
         } catch (_) {}
         showUserBubble();
         openPaywall();
@@ -730,15 +933,83 @@ export default function SpeakingScreen({
     }
   };
 
+  // Simple resume function - try simple restart first, then full cycle if needed
+  const resumeListening = async () => {
+    const currentModuleName = moduleNameRef.current || 'Voice';
+    console.log(`[${currentModuleName}] ========== resumeListening() called ==========`);
+
+    try {
+      const currentModule = SpeechModuleRef.current || Voice;
+
+      if (!currentModule || typeof currentModule.start !== 'function') {
+        console.warn(`[${currentModuleName}] Cannot resume - module not available`);
+        return;
+      }
+
+      // Try simple restart first (without destroy)
+      console.log(`[${currentModuleName}] Attempting simple restart...`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      try {
+        await currentModule.start('en-US');
+        console.log(`[${currentModuleName}] Simple restart successful`);
+        dispatch({ type: 'START_LISTEN' });
+        startPulse();
+        startAudioVisualization();
+        console.log(`[${currentModuleName}] ========== resumeListening() completed ==========`);
+        return;
+      } catch (simpleErr) {
+        console.warn(`[${currentModuleName}] Simple restart failed:`, simpleErr.message);
+      }
+
+      // If simple restart fails, try full destroy/restart cycle
+      console.log(`[${currentModuleName}] Trying full destroy/restart cycle...`);
+
+      // Clean up first
+      try {
+        if (currentModule.stop) await currentModule.stop();
+        if (currentModule.cancel) await currentModule.cancel();
+      } catch (cleanupErr) {
+        console.warn(`[${currentModuleName}] Cleanup warning:`, cleanupErr.message);
+      }
+
+      // Wait longer for cleanup
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Try to start again
+      await currentModule.start('en-US');
+
+      console.log(`[${currentModuleName}] Full restart successful`);
+      dispatch({ type: 'START_LISTEN' });
+      startPulse();
+      startAudioVisualization();
+      console.log(`[${currentModuleName}] ========== resumeListening() completed ==========`);
+
+    } catch (e) {
+      const currentModuleName = moduleNameRef.current || 'Voice';
+      console.error(`[${currentModuleName}] All resume attempts failed:`, e);
+
+      // Last resort: trigger a full component restart by calling startListening
+      console.log(`[${currentModuleName}] Last resort: calling startListening...`);
+      try {
+        await startListening();
+      } catch (finalErr) {
+        console.error(`[${currentModuleName}] Final restart also failed:`, finalErr);
+      }
+    }
+  };
+
   const playApiAudio = async (audioData) => {
     try {
       console.log('[Audio] Preparing to play audio...');
       
-      // CRITICAL: Stop Voice BEFORE playing audio to prevent self-recognition
-      console.log('[Audio] Stopping voice recognition BEFORE playback...');
-      await Voice.stop();
-      await Voice.cancel(); // Extra step to fully clear buffer
-      console.log('[Audio] Voice stopped, now safe to play audio');
+      // CRITICAL: Stop speech recognition BEFORE playing audio to prevent self-recognition
+      const currentModule = SpeechModuleRef.current || Voice;
+      const currentModuleName = moduleNameRef.current || 'Voice';
+      console.log(`[${currentModuleName}] Stopping speech recognition BEFORE playback...`);
+      if (currentModule.stop) await currentModule.stop();
+      if (currentModule.cancel) await currentModule.cancel();
+      console.log(`[${currentModuleName}] Speech recognition stopped, now safe to play audio`);
       
       dispatch({ type: 'PLAYING' });
       dispatch({ type: 'CLEAR_TRANSCRIPT' });
@@ -752,23 +1023,28 @@ export default function SpeakingScreen({
     } catch (err) {
       console.warn('[Audio] playback error', err);
       stopAudioVisualization();
-      // Don't throw - continue to restart voice even if audio fails
-    }
-    
-    // Only after audio completes, restart voice and return to listening
-    try {
-      console.log('[Audio] Audio finished, waiting before restart...');
-      
-      // Wait a bit to ensure clean state
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Use startListening which has proper cleanup logic
-      console.log('[Audio] Restarting voice recognition using startListening...');
-      await startListening();
-      console.log('[Audio] Voice restarted successfully, ready for new speech');
-    } catch (e) {
-      console.error('[Audio] Failed to restart voice:', e);
-      dispatch({ type: 'ERROR', error: e });
+      // Don't throw - continue to resume voice even if audio fails
+    } finally {
+      // Resume voice recognition after audio completes (simple resume, not full restart)
+      try {
+        console.log('[Audio] Audio finished, resuming voice recognition...');
+
+        // CRITICAL: Reset processing state BEFORE starting listening
+        isProcessingRef.current = false;
+        console.log('[Audio] Manually reset isProcessingRef to false');
+
+        // Wait a bit to ensure clean state
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Use startListening instead of resume to ensure proper initialization
+        await startListening();
+        console.log('[Audio] Voice restarted, ready for new speech');
+      } catch (e) {
+        console.error('[Audio] Failed to resume voice:', e);
+        // Reset processing state even on error
+        isProcessingRef.current = false;
+        // Don't set ERROR state - voice might still work, just log the error
+      }
     }
   };
 
@@ -776,11 +1052,13 @@ export default function SpeakingScreen({
     try {
       console.log('[TTS] Preparing to speak...');
       
-      // CRITICAL: Stop Voice BEFORE playing TTS to prevent self-recognition
-      console.log('[TTS] Stopping voice recognition BEFORE playback...');
-      await Voice.stop();
-      await Voice.cancel(); // Extra step to fully clear buffer
-      console.log('[TTS] Voice stopped, now safe to play TTS');
+      // CRITICAL: Stop speech recognition BEFORE playing TTS to prevent self-recognition
+      const currentModule = SpeechModuleRef.current || Voice;
+      const currentModuleName = moduleNameRef.current || 'Voice';
+      console.log(`[${currentModuleName}] Stopping speech recognition BEFORE playback...`);
+      if (currentModule.stop) await currentModule.stop();
+      if (currentModule.cancel) await currentModule.cancel();
+      console.log(`[${currentModuleName}] Speech recognition stopped, now safe to play TTS`);
       
       dispatch({ type: 'PLAYING' });
       dispatch({ type: 'CLEAR_TRANSCRIPT' });
@@ -794,39 +1072,59 @@ export default function SpeakingScreen({
     } catch (err) {
       console.warn('[TTS] speak error', err);
       stopAudioVisualization();
-    }
-    
-    // Only after TTS completes, restart voice and return to listening
-    try {
-      console.log('[TTS] TTS finished, waiting before restart...');
-      
-      // Wait a bit to ensure clean state
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Use startListening which has proper cleanup logic
-      console.log('[TTS] Restarting voice recognition using startListening...');
-      await startListening();
-      console.log('[TTS] Voice restarted successfully, ready for new speech');
-    } catch (e) {
-      console.error('[TTS] Failed to restart voice:', e);
-      dispatch({ type: 'ERROR', error: e });
+    } finally {
+      // Resume voice recognition after TTS completes (simple resume, not full restart)
+      try {
+        console.log('[TTS] TTS finished, resuming voice recognition...');
+
+        // CRITICAL: Reset processing state BEFORE starting listening
+        isProcessingRef.current = false;
+        console.log('[TTS] Manually reset isProcessingRef to false');
+
+        // Wait a bit to ensure clean state
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Use startListening instead of resume to ensure proper initialization
+        await startListening();
+        console.log('[TTS] Voice restarted, ready for new speech');
+      } catch (e) {
+        console.error('[TTS] Failed to resume voice:', e);
+        // Reset processing state even on error
+        isProcessingRef.current = false;
+        // Don't set ERROR state - voice might still work, just log the error
+      }
     }
   };
 
-  // Autostart listening on mount with delay to avoid iOS reuse error
+  // Autostart listening on mount with delay
   useEffect(() => {
-    console.log('[Voice] Component mounted, scheduling autostart...');
-    // Add small delay to ensure clean state after navigation
-    // Also allows time for permission request dialog to show if needed
-    const timer = setTimeout(() => {
-      console.log('[Voice] Autostart timer fired, calling startListening...');
-      startListening().catch(err => {
+    console.log('[Voice] ========== Component mounted, scheduling autostart ==========');
+    
+    const timer = setTimeout(async () => {
+      console.log('[Voice] Autostart timer fired.');
+      
+      // CRITICAL FIX: Force cleanup existing instances before first start
+      // This fixes the issue where user has to toggle stop/start to get it working
+      try {
+        console.log('[Voice] Force cleaning up before autostart...');
+        const currentModule = SpeechModuleRef.current || Voice;
+        if (currentModule.destroy) await currentModule.destroy();
+        if (currentModule.removeAllListeners) currentModule.removeAllListeners();
+        else if (useKSSpeechRef.current) ksSpeechAdapter.removeAllListeners();
+      } catch (e) {
+        console.warn('[Voice] Pre-autostart cleanup warning:', e);
+      }
+
+      console.log('[Voice] Calling startListening...');
+      try {
+        await startListening();
+      } catch (err) {
         console.error('[Voice] Autostart failed:', err);
-      });
-    }, 500); // Increased delay to allow permission dialog to show
+      }
+    }, 800); // Increased delay to 800ms to ensure navigation transition is done and mic is free
     
     return () => {
-      console.log('[Voice] Component unmounting, clearing autostart timer...');
+      console.log('[Voice] ========== Component unmounting, clearing autostart timer ==========');
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -922,11 +1220,17 @@ export default function SpeakingScreen({
               stopPulse();
               stopAudioVisualization();
               // Complete cleanup before navigation
-              await Voice.cancel();
-              await Voice.stop();
-              await Voice.destroy();
-              Voice.removeAllListeners();
-              console.log('[Navigation] Voice cleanup complete, navigating back...');
+              const currentModule = SpeechModuleRef.current || Voice;
+              const currentModuleName = moduleNameRef.current || 'Voice';
+              if (currentModule.cancel) await currentModule.cancel();
+              if (currentModule.stop) await currentModule.stop();
+              if (currentModule.destroy) await currentModule.destroy();
+              if (currentModule.removeAllListeners) {
+                currentModule.removeAllListeners();
+              } else if (useKSSpeechRef.current) {
+                ksSpeechAdapter.removeAllListeners();
+              }
+              console.log(`[${currentModuleName}] Cleanup complete, navigating back...`);
             } catch (err) {
               console.warn('[Navigation] Cleanup error:', err);
             } finally {
@@ -1058,7 +1362,7 @@ export default function SpeakingScreen({
             onPress={() => {
               if (micDisabled) return;
               if (isListening) stopListening();
-              else startListening();
+              else resumeListening(); // Use resume instead of startListening to avoid permission checks
             }}
           >
             <Animated.View

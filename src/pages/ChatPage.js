@@ -520,7 +520,8 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
       });
       const aiResponseText = response.data.data?.response || response.data.response;
       const audioData = response.data.data?.audio || response.data.audio; // Get audio from backend
-      const aiMessage = { sender: 'ai', text: aiResponseText };
+      // Store audioData on the AI message so we can replay using the same path later
+      const aiMessage = { sender: 'ai', text: aiResponseText, audioData };
       const updatedMessages = [...messages, userMessage, aiMessage];
       setMessages(updatedMessages);
       
@@ -691,16 +692,26 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
                     <Text style={styles.dateSeparatorText}>Today</Text>
                   </View>
                 )}
-                {messages.map((msg, index) => (
-                  <View key={index} style={styles.messageContainer}>
-                    <ChatBubble 
-                      sender={msg.sender} 
-                      message={msg.text}
-                      onSpeak={() => msg.sender === 'ai' && speakTextWithTTS(msg.text)}
-                      isSpeaking={isSpeaking && msg.sender === 'ai'}
-                    />
-                  </View>
-                ))}
+                {messages.map((msg, index) => {
+                  const isGreetingMessage = msg.sender === 'ai' && index === 0;
+                  return (
+                    <View key={index} style={styles.messageContainer}>
+                      <ChatBubble 
+                        sender={msg.sender} 
+                        message={msg.text}
+                        // Hide/disable speak button for the initial greeting message
+                        // by not passing onSpeak for that specific bubble.
+                        // For all other AI messages, keep the speak button as before.
+                        onSpeak={
+                          !isGreetingMessage && msg.sender === 'ai'
+                            ? () => speakTextWithTTS(msg.text, msg.audioData)
+                            : undefined
+                        }
+                        isSpeaking={isSpeaking && msg.sender === 'ai'}
+                      />
+                    </View>
+                  );
+                })}
               </View>
             </TouchableWithoutFeedback>
           </ScrollView>

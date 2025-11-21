@@ -9,6 +9,8 @@ import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.wenkesj.voice.VoicePackage
 import com.kidspeak.mobile.KSPurchasePackage
+import com.kidspeak.mobile.KSSpeechPackage
+import com.kidspeak.mobile.NativeAudioPlayerPackage
 
 class MainApplication : Application(), ReactApplication {
 

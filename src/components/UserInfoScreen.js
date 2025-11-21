@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
+  Modal,
 } from 'react-native';
 import { markUserInfoCompleted, getUserData } from '../utils/onboardingStorage';
 
@@ -19,6 +20,7 @@ function UserInfoScreen({ onUserInfoSubmit, isFromSettings = false }) {
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isAgePickerVisible, setAgePickerVisible] = useState(false);
 
   // Load saved user data on mount
   useEffect(() => {
@@ -104,6 +106,8 @@ function UserInfoScreen({ onUserInfoSubmit, isFromSettings = false }) {
     }
   };
 
+  const ageOptions = ['6', '7', '8', '9', '10', '11'];
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
@@ -128,25 +132,12 @@ function UserInfoScreen({ onUserInfoSubmit, isFromSettings = false }) {
 
         <View style={styles.formGroup}>
           <Text style={styles.label}>
-            <Text style={styles.labelIcon}>🎂</Text> How old are you?
+            <Text style={styles.labelIcon}>🎂 How old are you?</Text>
           </Text>
           <View style={styles.pickerContainer}>
             <TouchableOpacity
               style={styles.picker}
-              onPress={() => {
-                Alert.alert(
-                  'Select your age',
-                  '',
-                  [
-                    { text: '6 years old', onPress: () => handleInputChange('age', '6') },
-                    { text: '7 years old', onPress: () => handleInputChange('age', '7') },
-                    { text: '8 years old', onPress: () => handleInputChange('age', '8') },
-                    { text: '9 years old', onPress: () => handleInputChange('age', '9') },
-                    { text: '10 years old', onPress: () => handleInputChange('age', '10') },
-                    { text: '11 years old', onPress: () => handleInputChange('age', '11') },
-                  ]
-                );
-              }}
+              onPress={() => setAgePickerVisible(true)}
             >
               <Text style={styles.pickerText}>
                 {formData.age ? `${formData.age} years old` : 'Select your age'}
@@ -190,6 +181,50 @@ function UserInfoScreen({ onUserInfoSubmit, isFromSettings = false }) {
       <View style={styles.footer}>
         <Text style={styles.footerText}>💡 Don't worry! This information helps me teach you better.</Text>
       </View>
+
+      {/* Age Selection Modal */}
+      <Modal
+        visible={isAgePickerVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setAgePickerVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setAgePickerVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select your age</Text>
+            <View style={styles.modalOptionsContainer}>
+              {ageOptions.map((age) => (
+                <TouchableOpacity
+                  key={age}
+                  style={[
+                    styles.modalOption,
+                    formData.age === age && styles.modalOptionSelected
+                  ]}
+                  onPress={() => {
+                    handleInputChange('age', age);
+                    setAgePickerVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalOptionText,
+                    formData.age === age && styles.modalOptionTextSelected
+                  ]}>{age} years old</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setAgePickerVisible(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -329,6 +364,68 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 340,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalOptionsContainer: {
+    marginBottom: 10,
+  },
+  modalOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  modalOptionSelected: {
+    backgroundColor: '#e3f2fd',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333333',
+    textAlign: 'center',
+  },
+  modalOptionTextSelected: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  modalCancelButton: {
+    marginTop: 8,
+    paddingVertical: 12,
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });
 

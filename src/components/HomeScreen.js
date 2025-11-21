@@ -89,7 +89,11 @@ function HomeScreen({ navigation, hideBottomNav = false, hideHeader = false }) {
           {featuredFriends.map((f, idx) => (
             <TouchableOpacity
               key={f.id}
-              style={[styles.friendCard, idx === 0 && styles.friendCardActive]}
+              style={[
+                styles.friendCard,
+                idx === 0 && styles.friendCardActive,
+                idx === featuredFriends.length - 1 && styles.friendCardLast,
+              ]}
               onPress={() => handleGoToChat(f)}
             >
               <View style={styles.friendImage}>
@@ -210,6 +214,9 @@ const styles = StyleSheet.create({
   friendCardActive: {
     borderWidth: 2,
     borderColor: '#F5A623',
+  },
+  friendCardLast: {
+    marginRight: 20,
   },
   friendImage: {
     height: 110,
