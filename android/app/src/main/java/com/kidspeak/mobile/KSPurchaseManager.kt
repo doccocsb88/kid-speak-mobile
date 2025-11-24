@@ -164,18 +164,26 @@ class KSPurchaseManager(reactContext: ReactApplicationContext) :
                     productDetailsList.forEach { product ->
                         Log.d("KSPurchaseManager", "Product: ${product.productId}, Name: ${product.name}")
                         Log.d("KSPurchaseManager", "  Offers: ${product.subscriptionOfferDetails?.size ?: 0}")
-                        
+
                         val productMap = Arguments.createMap().apply {
                             putString("id", product.productId)
                             putString("displayName", product.name)
                             putString("description", product.description)
-                            
+
                             product.subscriptionOfferDetails?.firstOrNull()?.let { offer ->
                                 Log.d("KSPurchaseManager", "  Offer token: ${offer.offerToken}")
-                                offer.pricingPhases.pricingPhaseList.firstOrNull()?.let { phase ->
+
+                                val pricingPhases = offer.pricingPhases.pricingPhaseList
+
+                                // Chọn phase cuối cùng (thường là giá recurring sau trial / intro offer),
+                                // nếu không có thì fallback sang phase đầu.
+                                val mainPhase = pricingPhases.lastOrNull()
+                                    ?: pricingPhases.firstOrNull()
+
+                                mainPhase?.let { phase ->
                                     putString("displayPrice", phase.formattedPrice)
                                     putDouble("price", phase.priceAmountMicros / 1000000.0)
-                                    Log.d("KSPurchaseManager", "  Price: ${phase.formattedPrice}")
+                                    Log.d("KSPurchaseManager", "  Display price (recurring): ${phase.formattedPrice}")
                                 }
                             }
                         }

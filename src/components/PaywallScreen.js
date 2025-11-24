@@ -42,7 +42,7 @@ const SUBSCRIPTION_PLANS = [
     title: 'Weekly Trial',
     price: '$2.99',
     duration: 'per week',
-    description: '7-day trial access',
+    description: '3-day trial access',
     badge: 'Trial',
     badgeColor: '#FF6B6B',
     isPopular: false,
@@ -75,6 +75,7 @@ const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.
   const [products, setProducts] = useState([]);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfUse, setShowTermsOfUse] = useState(false);
+  const [activeProductId, setActiveProductId] = useState(null);
 
   // Initialize IAP on component mount
   useEffect(() => {
@@ -99,6 +100,9 @@ const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.
         
         // Update prices from store if available
         updatePricesFromStore(availableProducts);
+
+        // Check if user already has an active subscription
+        await checkActiveSubscriptionStatus();
       } else {
         Alert.alert(
           'Error',
@@ -122,6 +126,28 @@ const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.
         plan.price = product.displayPrice;
       }
     });
+  };
+
+  const checkActiveSubscriptionStatus = async () => {
+    try {
+      const hasActive = await NativeIAPService.hasActiveSubscription();
+
+      if (!hasActive) {
+        setActiveProductId(null);
+        return;
+      }
+
+      const currentSubscription = await NativeIAPService.getCurrentSubscription();
+
+      if (currentSubscription && currentSubscription.productId) {
+        setActiveProductId(currentSubscription.productId);
+      } else {
+        setActiveProductId(null);
+      }
+    } catch (error) {
+      console.error('Check active subscription error:', error);
+      setActiveProductId(null);
+    }
   };
 
   const handleSelectPlan = (planId) => {
@@ -151,6 +177,9 @@ const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.
       
       // Mark user as premium locally
       await UserManager.setPremiumUser(true);
+
+      // Update local active subscription state
+      await checkActiveSubscriptionStatus();
 
       // Call callback if provided
       if (onSubscribe) {
@@ -341,6 +370,10 @@ const PaywallScreen = ({navigation, onSubscribe, onClose, storeType = StoreType.
                     <Text style={styles.planPrice}>{plan.price}</Text>
                     <Text style={styles.planDuration}> {plan.duration}</Text>
                   </View>
+
+                  {activeProductId === plan.id && (
+                    <Text style={styles.purchasedLabel}>Purchased</Text>
+                  )}
                 </View>
               </TouchableOpacity>
             );
@@ -674,6 +707,12 @@ const styles = StyleSheet.create({
   planDuration: {
     fontSize: 15,
     color: '#7F8C8D',
+  },
+  purchasedLabel: {
+    marginBottom: 10,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#27AE60',
   },
   featureRow: {
     flexDirection: 'row',
