@@ -3,6 +3,9 @@
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Ensure background matches splash -->
         <item name="android:windowBackground">@color/bootsplash_background</item>
+        <!-- Tạm thời opt-out khỏi enforcement edge-to-edge của Android 15 để tránh các thay đổi đột ngột.
+             Xem: https://developer.android.com/about/versions/15/behavior-changes-15#edge-to-edge -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 
     <!-- Launch theme using AndroidX SplashScreen -->
