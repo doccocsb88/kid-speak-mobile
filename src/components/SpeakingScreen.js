@@ -5,7 +5,7 @@
 // - Bind Voice listeners once ([], use refs inside)
 // - Arm 2s timer on results AND onSpeechEnd (if transcript exists)
 
-import React, { useEffect, useReducer, useRef, useState } from 'react';
+import React, { useEffect, useReducer, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { API_BASE_URL } from '../config/api';
 import { playAudioFromData, playTTS } from '../services/playaudioService';
 import ConversationSettings from './ConversationSettings';
+import { getFriendAvatar } from '../pages/FriendList';
 import conversationSettingsManager from '../services/conversationSettingsManager';
 import { useConversationSettings } from '../hooks/useConversationSettings';
 import userManager from '../services/UserManager';
@@ -128,6 +129,8 @@ export default function SpeakingScreen({
   currentSessionId,
   selectedVoice: initialSelectedVoice = 'alloy',
   initialMessages = [],
+  onBusyChange,
+  onMessagesChange,
 }) {
   const { isAuthenticated } = useAuth();
   const { getOptions } = useConversationSettings();
@@ -891,8 +894,12 @@ export default function SpeakingScreen({
       // Count successful API request for free users
       try { await userManager.recordRequest(); } catch (_) {}
 
-      // Add AI message to conversation
-      const aiMessage = { sender: 'ai', text: text };
+      // Add AI message to conversation (include audio so ChatPage can replay without extra TTS)
+      const aiMessage = {
+        sender: 'ai',
+        text,
+        audioData: audio || null,
+      };
       setConversationMessages(prev => [...prev, aiMessage]);
 
       dispatch({ type: 'SET_AI_TEXT', text });
@@ -1136,6 +1143,58 @@ export default function SpeakingScreen({
 
   const micDisabled = isRequesting || isPlaying;
   const isBusy = isRequesting || isPlaying;
+
+  // Unified back handler: used by both header back button and Android hardware back
+  const handleBackPress = useCallback(async () => {
+    if (isBusy) {
+      console.log('[Navigation] Back press ignored because isBusy = true');
+      return;
+    }
+
+    try {
+      console.log('[Navigation] Back pressed (UI/hardware), cleaning up Voice...');
+      clearSilenceTimer();
+      stopPulse();
+      stopAudioVisualization();
+      // Complete cleanup before navigation
+      const currentModule = SpeechModuleRef.current || Voice;
+      const currentModuleName = moduleNameRef.current || 'Voice';
+      if (currentModule.cancel) await currentModule.cancel();
+      if (currentModule.stop) await currentModule.stop();
+      if (currentModule.destroy) await currentModule.destroy();
+      if (currentModule.removeAllListeners) {
+        currentModule.removeAllListeners();
+      } else if (useKSSpeechRef.current) {
+        ksSpeechAdapter.removeAllListeners();
+      }
+      console.log(`[${currentModuleName}] Cleanup complete, navigating back...`);
+    } catch (err) {
+      console.warn('[Navigation] Cleanup error on back press:', err);
+    } finally {
+      // Navigate back even if cleanup fails, and pass conversation history up
+      onBack && onBack(conversationMessages);
+    }
+  }, [
+    isBusy,
+    clearSilenceTimer,
+    stopPulse,
+    stopAudioVisualization,
+    onBack,
+    conversationMessages,
+  ]);
+  // Notify parent (ChatPage) when busy state changes so it can block Modal close / hardware back
+  useEffect(() => {
+    if (typeof onBusyChange === 'function') {
+      onBusyChange(isBusy);
+    }
+  }, [isBusy, onBusyChange]);
+
+  // Keep ChatPage's messages in sync with SpeakingScreen conversation
+  useEffect(() => {
+    if (typeof onMessagesChange === 'function') {
+      onMessagesChange(conversationMessages);
+    }
+  }, [conversationMessages, onMessagesChange]);
   // const onMicPress = async () => {
   //   if (micDisabled) return;
   //   if (isListening) await stopListening();
@@ -1184,6 +1243,13 @@ export default function SpeakingScreen({
 
   const headerTitle = getHeaderTitle();
 
+  // Determine if this is a friend-based topic and resolve avatar
+  const isFriendTopic =
+    selectedTopic && String(selectedTopic.id || '').startsWith('friend_');
+  const friendAvatarSource = isFriendTopic
+    ? getFriendAvatar(String(selectedTopic.id).replace('friend_', ''))
+    : null;
+
   // Calculate safe padding for Android - ensure minimum padding even if insets not ready
   // Use StatusBar.currentHeight as fallback for Android, with minimum of 16
   const getAndroidPaddingTop = () => {
@@ -1212,33 +1278,7 @@ export default function SpeakingScreen({
       <TouchableOpacity
         style={[styles.backButton, isBusy && styles.disabledButton]}
         disabled={isBusy}
-        onPress={async () => {
-          if (!isBusy) {
-            try {
-              console.log('[Navigation] Back button pressed, cleaning up Voice...');
-              clearSilenceTimer();
-              stopPulse();
-              stopAudioVisualization();
-              // Complete cleanup before navigation
-              const currentModule = SpeechModuleRef.current || Voice;
-              const currentModuleName = moduleNameRef.current || 'Voice';
-              if (currentModule.cancel) await currentModule.cancel();
-              if (currentModule.stop) await currentModule.stop();
-              if (currentModule.destroy) await currentModule.destroy();
-              if (currentModule.removeAllListeners) {
-                currentModule.removeAllListeners();
-              } else if (useKSSpeechRef.current) {
-                ksSpeechAdapter.removeAllListeners();
-              }
-              console.log(`[${currentModuleName}] Cleanup complete, navigating back...`);
-            } catch (err) {
-              console.warn('[Navigation] Cleanup error:', err);
-            } finally {
-              // Navigate back even if cleanup fails
-              onBack && onBack(conversationMessages);
-            }
-          }
-        }}
+        onPress={handleBackPress}
       >
         <Text style={styles.backButtonIcon}>←</Text>
       </TouchableOpacity>
@@ -1259,11 +1299,23 @@ export default function SpeakingScreen({
         {/* Top Section: Avatar and Status */}
         <View style={styles.topSection}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDrOfEQkVdMdCENiYkYSl6j7jlSnrsh6RbTYKRyWoz5pwriWvPucsmG364GhfVEcIlmQPqiBFRli6Nj9fzWYlCp0rVrqqwlZRSg_NIAq2OrHU3ls8YMWrsRNLyxAVNANN1K6p5T3fudlUkakL8BjCC-XmKz8HoX3VarkM6nOHwbw2EDzQ3YGnW4SVCfMPUkfFm7SdxDFA83eDWUBgq4jK2BTB8fkR9AnGu51_wIFCZIBXR2uzILHuSERag-UqvcybDlFP_O1En_zQ' }}
-              style={styles.avatar}
-              defaultSource={require('../assets/images/ic_audio.png')}
-            />
+            {isFriendTopic && friendAvatarSource ? (
+              <Image
+                source={friendAvatarSource}
+                style={styles.avatar}
+                resizeMode="contain"
+              />
+            ) : selectedTopic?.icon ? (
+              <View style={styles.topicAvatar}>
+                <Text style={styles.topicAvatarEmoji}>{selectedTopic.icon}</Text>
+              </View>
+            ) : (
+              <Image
+                source={require('../assets/images/ic_audio.png')}
+                style={styles.avatar}
+                resizeMode="contain"
+              />
+            )}
           </View>
           <Text style={styles.listeningStatus}>
             {isPlaying ? 'Playing...' : isRequesting ? 'Processing...' : isListening ? "I'm listening..." : 'Ready to speak'}
@@ -1469,6 +1521,17 @@ const styles = StyleSheet.create({
     width: 128,
     height: 128,
     borderRadius: 64,
+  },
+  topicAvatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topicAvatarEmoji: {
+    fontSize: 64,
   },
   listeningStatus: {
     fontSize: 28,

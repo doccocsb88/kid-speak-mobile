@@ -45,6 +45,7 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSpeakingScreenBusy, setIsSpeakingScreenBusy] = useState(false);
   const [ttsOptions, setTtsOptions] = useState({ voices: ['alloy'], models: ['tts-1'] });
   const [selectedVoice, setSelectedVoice] = useState('alloy');
   const [selectedTopic, setSelectedTopic] = useState(null);
@@ -400,18 +401,34 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
   // Handle returning from speaking screen
   const handleSpeakingScreenClose = async (updatedMessages) => {
     console.log('[ChatPage] Returning from SpeakingScreen...');
+    console.log(
+      '[ChatPage] SpeakingScreen close payload:',
+      Array.isArray(updatedMessages) ? `messages=${updatedMessages.length}` : 'no messages array',
+    );
+    console.log('[ChatPage] selectedTopic at close:', selectedTopic?.id, selectedTopic?.title);
+    console.log('[ChatPage] currentConversationId at close:', currentConversationId);
+
     setShowSpeakingScreen(false);
-    
+
     // Update messages với conversation từ SpeakingScreen
-    if (updatedMessages && updatedMessages.length > 0) {
+    if (updatedMessages && Array.isArray(updatedMessages) && updatedMessages.length > 0) {
       setMessages(updatedMessages);
-      
-      // Save updated conversation
-      if (selectedTopic) {
-        await saveConversation(updatedMessages, selectedTopic);
+
+      try {
+        const topicForSave = selectedTopic;
+        if (!topicForSave) {
+          console.warn('[ChatPage] No selectedTopic when closing SpeakingScreen, conversation will not be saved to history');
+        } else {
+          console.log('[ChatPage] Saving conversation from SpeakingScreen close...');
+          await saveConversation(updatedMessages, topicForSave);
+          console.log('[ChatPage] Conversation saved from SpeakingScreen close');
+        }
+      } catch (err) {
+        console.error('[ChatPage] Error saving conversation from SpeakingScreen close:', err);
       }
+    } else {
+      console.log('[ChatPage] No updatedMessages passed from SpeakingScreen; skipping history save');
     }
-    
   };
 
   const sendMessage = useCallback(async (messageToSend = inputMessage) => {
@@ -782,7 +799,14 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
         visible={showSpeakingScreen}
         animationType="slide"
         presentationStyle="fullScreen"
-        onRequestClose={handleSpeakingScreenClose}
+        onRequestClose={() => {
+          if (isSpeakingScreenBusy) {
+            console.log('[ChatPage] Modal onRequestClose blocked because SpeakingScreen is busy');
+            return;
+          }
+          // Hardware back / system close: use current messages state from ChatPage
+          handleSpeakingScreenClose(messages);
+        }}
       >
         <SpeakingScreen
           userInfo={userInfo}
@@ -791,6 +815,8 @@ function ChatPage({ navigation, initialConversation, initialSelectedTopic }) {
           selectedVoice={selectedVoice}
           initialMessages={messages}
           onBack={handleSpeakingScreenClose}
+          onBusyChange={setIsSpeakingScreenBusy}
+          onMessagesChange={setMessages}
         />
       </Modal>
 
